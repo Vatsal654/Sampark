@@ -1,0 +1,91 @@
+/**
+ * Purpose: Minimal English/Nepali translation dictionary for the scanner
+ * portal, deliberately not pulling in a full i18n framework to keep the
+ * bundle light for low-bandwidth Nepali mobile networks.
+ * Responsibilities: A flat key→{en,ne} map and a `t(key)` lookup used by
+ * every component.
+ * Related: components/LanguageProvider.tsx.
+ */
+export type Locale = 'en' | 'ne';
+
+export const DICTIONARY = {
+  appIntro: {
+    en: 'You are contacting a vehicle owner through Sampark.',
+    ne: 'तपाईं सम्पर्क मार्फत सवारी मालिकलाई सम्पर्क गर्दै हुनुहुन्छ।',
+  },
+  privacyExplainer: {
+    en: 'The owner’s phone number is never shown to you, and your number is never shown to them.',
+    ne: 'मालिकको फोन नम्बर तपाईंलाई कहिल्यै देखाइँदैन, र तपाईंको नम्बर पनि उनीहरूलाई कहिल्यै देखाइँदैन।',
+  },
+  loading: { en: 'Loading…', ne: 'लोड हुँदैछ…' },
+  vehicleLabelFallback: { en: 'This vehicle', ne: 'यो सवारी साधन' },
+  sendAlert: { en: 'Send an alert', ne: 'सतर्कता पठाउनुहोस्' },
+  requestCallback: { en: 'Request a private callback', ne: 'निजी कलब्याक अनुरोध गर्नुहोस्' },
+  emergency: { en: 'This is an emergency', ne: 'यो एउटा आपतकालीन अवस्था हो' },
+  reportTag: { en: 'Report a damaged or suspicious tag', ne: 'बिग्रिएको वा शंकास्पद ट्यागको रिपोर्ट गर्नुहोस्' },
+  categoryBlockingAccess: { en: 'Blocking access', ne: 'बाटो रोकिएको' },
+  categoryLightsOn: { en: 'Lights left on', ne: 'लाइट खुला छ' },
+  categoryWindowOpen: { en: 'Window or door open', ne: 'झ्याल वा ढोका खुला छ' },
+  categoryBeingTowed: { en: 'Being towed', ne: 'टो गरिँदैछ' },
+  categoryParkingConcern: { en: 'Parking concern', ne: 'पार्किङ सम्बन्धी समस्या' },
+  categoryOther: { en: 'Other', ne: 'अन्य' },
+  optionalNote: { en: 'Add a short note (optional)', ne: 'छोटो टिप्पणी थप्नुहोस् (वैकल्पिक)' },
+  shareLocation: { en: 'Share my location for this alert', ne: 'यस सतर्कताको लागि मेरो स्थान साझा गर्नुहोस्' },
+  submit: { en: 'Send', ne: 'पठाउनुहोस्' },
+  cancel: { en: 'Cancel', ne: 'रद्द गर्नुहोस्' },
+  alertSentTitle: { en: 'Alert sent securely', ne: 'सतर्कता सुरक्षित रूपमा पठाइयो' },
+  alertSentBody: {
+    en: 'The vehicle owner may not be available immediately. Thank you for helping.',
+    ne: 'सवारी मालिक तुरुन्तै उपलब्ध नहुन सक्नुहुन्छ। मद्दतको लागि धन्यवाद।',
+  },
+  errorGeneric: { en: 'Something went wrong. Please try again.', ne: 'केही समस्या भयो। कृपया फेरि प्रयास गर्नुहोस्।' },
+  errorRateLimited: { en: 'Too many requests. Please wait a moment and try again.', ne: 'धेरै अनुरोधहरू। कृपया केही समय पर्खनुहोस्।' },
+  tagNotFoundTitle: { en: 'Tag not found', ne: 'ट्याग फेला परेन' },
+  tagNotFoundBody: {
+    en: 'This link is invalid or has expired. If you scanned a physical tag, it may be damaged.',
+    ne: 'यो लिंक अमान्य छ वा म्याद सकिएको छ। यदि तपाईंले भौतिक ट्याग स्क्यान गर्नुभयो भने, यो बिग्रिएको हुन सक्छ।',
+  },
+  tagUnactivatedTitle: { en: 'This tag is not yet activated', ne: 'यो ट्याग अझै सक्रिय गरिएको छैन' },
+  tagUnactivatedBody: {
+    en: 'The owner has not finished setting up this tag yet, so alerts cannot be sent.',
+    ne: 'मालिकले यो ट्याग अझै सेटअप गर्न सकेका छैनन्, त्यसैले सतर्कता पठाउन सकिँदैन।',
+  },
+  tagPausedTitle: { en: 'This tag is temporarily paused', ne: 'यो ट्याग अस्थायी रूपमा रोकिएको छ' },
+  tagPausedBody: { en: 'The owner has paused alerts for now, for example while parking with an attendant.', ne: 'मालिकले अहिलेको लागि सतर्कता रोक्नुभएको छ।' },
+  tagUnavailableTitle: { en: 'This tag is unavailable', ne: 'यो ट्याग उपलब्ध छैन' },
+  tagUnavailableBody: { en: 'This tag has been revoked, reported lost, or replaced by its owner.', ne: 'यो ट्याग रद्द, हराएको रिपोर्ट, वा प्रतिस्थापन गरिएको छ।' },
+  emergencyWarning: {
+    en: 'For immediate danger to life, contact local emergency services first.',
+    ne: 'जीवनलाई तत्काल खतरा भएमा, पहिले स्थानीय आपतकालीन सेवाहरूलाई सम्पर्क गर्नुहोस्।',
+  },
+  emergencyConfirm: { en: 'I confirm this is a genuine emergency', ne: 'म पुष्टि गर्छु कि यो साँचो आपतकालीन अवस्था हो' },
+  phoneNumberLabel: { en: 'Your phone number', ne: 'तपाईंको फोन नम्बर' },
+  phoneNumberHelp: {
+    en: 'Used only to connect a private callback. It is never shown to the vehicle owner.',
+    ne: 'यो निजी कलब्याक जडान गर्न मात्र प्रयोग गरिन्छ। यो सवारी मालिकलाई कहिल्यै देखाइँदैन।',
+  },
+  sendCode: { en: 'Send verification code', ne: 'प्रमाणीकरण कोड पठाउनुहोस्' },
+  enterCode: { en: 'Enter the 6-digit code', ne: '6-अंकको कोड प्रविष्ट गर्नुहोस्' },
+  verifyAndCall: { en: 'Verify and request callback', ne: 'प्रमाणित गर्नुहोस् र कलब्याक अनुरोध गर्नुहोस्' },
+  callbackNotEnabled: {
+    en: 'Private callback is not available for this vehicle right now.',
+    ne: 'अहिले यो सवारीको लागि निजी कलब्याक उपलब्ध छैन।',
+  },
+  callConsent: {
+    en: 'I agree to be connected through a private callback. My number will not be shared with the owner.',
+    ne: 'म निजी कलब्याक मार्फत जडान हुन सहमत छु। मेरो नम्बर मालिकसँग साझा गरिने छैन।',
+  },
+  callRequested: { en: 'Callback requested', ne: 'कलब्याक अनुरोध गरियो' },
+  callRequestedBody: { en: 'You should receive a call shortly through a private, masked number.', ne: 'तपाईंले चाँडै एउटा निजी, लुकेको नम्बर मार्फत कल प्राप्त गर्नुहुनेछ।' },
+  backHome: { en: 'Back', ne: 'फिर्ता' },
+  reportReasonDamaged: { en: 'The tag looks damaged', ne: 'ट्याग बिग्रिएको देखिन्छ' },
+  reportReasonSuspicious: { en: 'This looks suspicious or copied', ne: 'यो शंकास्पद वा नक्कल गरिएको देखिन्छ' },
+  reportReasonOther: { en: 'Other issue', ne: 'अन्य समस्या' },
+  reportSent: { en: 'Thank you, your report was received.', ne: 'धन्यवाद, तपाईंको रिपोर्ट प्राप्त भयो।' },
+} as const;
+
+export type TranslationKey = keyof typeof DICTIONARY;
+
+export function translate(locale: Locale, key: TranslationKey): string {
+  return DICTIONARY[key][locale];
+}
