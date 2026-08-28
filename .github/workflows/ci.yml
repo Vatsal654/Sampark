@@ -1,0 +1,142 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-typecheck-unit:
+    name: Lint, typecheck, unit tests (TypeScript)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build --workspace packages/shared-config --workspace packages/shared-security --workspace packages/api-contracts
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test
+
+  integration-e2e:
+    name: Integration + e2e tests (Postgres + Redis)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: sampark
+          POSTGRES_PASSWORD: sampark_dev_password
+          POSTGRES_DB: sampark
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U sampark"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgres://sampark:sampark_dev_password@localhost:5432/sampark
+      REDIS_URL: redis://localhost:6379
+      JWT_ACCESS_SECRET: ci-test-access-secret-not-for-production-use-32c
+      JWT_REFRESH_SECRET: ci-test-refresh-secret-not-for-production-use-32
+      TAG_SIGNING_SECRET: ci-test-tag-signing-secret-not-for-production-32
+      FIELD_ENCRYPTION_ROOT_KEY: ci-test-field-encryption-key-not-for-prod-32
+      PROVIDER_WEBHOOK_SECRET: ci-test-webhook-secret-not-for-production-32c
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build --workspace packages/shared-config --workspace packages/shared-security --workspace packages/api-contracts
+      - run: npm run migration:run --workspace services/api
+      - run: npm run test:integration --workspace services/api
+      - run: npm run test:e2e --workspace services/api
+
+  build:
+    name: Production builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build --workspace packages/shared-config --workspace packages/shared-security --workspace packages/api-contracts
+      - run: npm run build --workspace services/api
+      - run: npm run build --workspace services/worker
+      - run: npm run build --workspace apps/scanner-portal
+        env:
+          NEXT_PUBLIC_API_BASE_URL: https://api.example.invalid/v1
+      - run: npm run build --workspace apps/admin
+        env:
+          API_BASE_URL: https://api.example.invalid/v1
+
+  playwright:
+    name: Playwright (scanner portal + admin)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build --workspace packages/shared-config --workspace packages/shared-security --workspace packages/api-contracts
+      - run: npm run test:e2e --workspace apps/scanner-portal
+      - run: npm run test:e2e --workspace apps/admin
+
+  flutter:
+    name: Flutter analyze + test (mobile)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'
+          channel: 'stable'
+      - working-directory: apps/mobile
+        run: flutter create --project-name sampark --org com.sampark .
+      - working-directory: apps/mobile
+        run: flutter pub get
+      - working-directory: apps/mobile
+        run: flutter analyze
+      - working-directory: apps/mobile
+        run: flutter test
+
+  security:
+    name: Dependency audit + secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: npm audit (high/critical)
+        run: npm audit --audit-level=high
+        continue-on-error: true # tracked as a pre-production remediation item, see docs/DEPLOYMENT.md
+      - name: Secret pattern scan
+        run: |
+          set -euo pipefail
+          if git grep -InE "(AKIA[0-9A-Z]{16}|-----BEGIN (RSA|EC|OPENSSH|PGP) PRIVATE KEY-----|xox[baprs]-[0-9A-Za-z-]{10,})" -- . ':(exclude).github/workflows/ci.yml'; then
+            echo "Potential secret pattern found — see matches above." >&2
+            exit 1
+          fi
+          echo "No obvious secret patterns found."

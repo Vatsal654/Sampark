@@ -5,7 +5,7 @@
  * mock only logs a masked form via the shared logger's redaction filter.
  * Related: jobs/notification-delivery.processor.ts, webhook-caller.ts.
  */
-import { Inject, Injectable, NotImplementedException } from '@nestjs/common';
+import { Injectable, NotImplementedException } from '@nestjs/common';
 import { logger, maskPhoneForDisplay } from '@sampark/shared-security';
 import { WORKER_CONFIG, type WorkerConfig } from '../config/config.module';
 import { WebhookCallerService } from './webhook-caller';

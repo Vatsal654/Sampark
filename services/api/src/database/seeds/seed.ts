@@ -10,6 +10,7 @@
  * (guarded by NODE_ENV below).
  * Related: docs/LOCAL_DEVELOPMENT.md.
  */
+/* eslint-disable no-console -- CLI script; stdout output is the intended UI */
 import 'reflect-metadata';
 import bcrypt from 'bcryptjs';
 import { encryptField, hashForLookup, generateOpaqueTagId, signTagReference } from '@sampark/shared-security';

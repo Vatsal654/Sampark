@@ -52,7 +52,18 @@ export function FeatureFlagsPanel() {
       </p>
       <div className="field">
         <label htmlFor="flag-reason">Reason for next change</label>
-        <input id="flag-reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Enabling for pilot cohort per ops review" />
+        <input
+          id="flag-reason"
+          value={reason}
+          onChange={(e) => {
+            setReason(e.target.value);
+            if (e.target.value.length >= 10) {
+              setError(null);
+              setPendingKey(null);
+            }
+          }}
+          placeholder="e.g. Enabling for pilot cohort per ops review"
+        />
       </div>
       {error && <p className="error-text">{error}</p>}
       <table>
@@ -67,7 +78,7 @@ export function FeatureFlagsPanel() {
         </thead>
         <tbody>
           {flags.map((flag) => (
-            <tr key={flag.key}>
+            <tr key={flag.key} style={pendingKey === flag.key ? { background: '#fdecea' } : undefined}>
               <td>{flag.key}</td>
               <td><span className={flag.enabled ? 'badge' : 'badge badge-danger'}>{flag.enabled ? 'on' : 'off'}</span></td>
               <td>{flag.envCapabilityEnabled ? 'configured' : 'not configured'}</td>

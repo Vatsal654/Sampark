@@ -1,0 +1,68 @@
+# Purpose: Local development infrastructure — Postgres, Redis, and MinIO
+# (S3-compatible object storage for the document vault). No paid services,
+# no real telecom/SMS/WhatsApp accounts; those stay mocked inside the API
+# and worker processes themselves (see docs/LOCAL_DEVELOPMENT.md).
+name: sampark
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sampark
+      POSTGRES_PASSWORD: sampark_dev_password
+      POSTGRES_DB: sampark
+    ports:
+      - '5432:5432'
+    volumes:
+      - sampark_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U sampark']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: sampark_dev_minio
+      MINIO_ROOT_PASSWORD: sampark_dev_minio_secret
+    ports:
+      - '9000:9000' # S3 API
+      - '9001:9001' # Web console
+    volumes:
+      - sampark_minio_data:/data
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Creates the document-vault bucket on first start so the API doesn't have to.
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 sampark_dev_minio sampark_dev_minio_secret &&
+      mc mb --ignore-existing local/sampark-documents-dev
+      "
+
+volumes:
+  sampark_postgres_data:
+  sampark_minio_data:
