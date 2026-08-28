@@ -61,6 +61,9 @@ portal, and the admin console so client and server never drift.
   `POST /owner/documents/:id/share` (inspector share code)
 - `GET /owner/privacy/export`, `POST /owner/privacy/delete-account`
 - `POST /owner/consents`
+- `GET/POST /owner/orders` — tag orders, payment behind a mocked adapter
+  (`FEATURE_REAL_PAYMENTS`, off by default)
+- `GET/POST /owner/support-tickets` — report-a-problem / support requests
 
 ### Admin (`/v1/admin/*`) — staff session + RBAC required
 - `GET /admin/tags`, `POST /admin/tags/issue`, `POST /admin/tags/:id/suspend`

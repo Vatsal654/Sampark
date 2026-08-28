@@ -21,6 +21,8 @@ import { AdminModule } from './modules/admin/admin.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { HealthModule } from './modules/health/health.module';
 import { ProvidersModule } from './modules/providers/providers.module';
+import { OrdersModule } from './modules/orders/orders.module';
+import { SupportModule } from './modules/support/support.module';
 
 @Module({
   imports: [
@@ -50,6 +52,8 @@ import { ProvidersModule } from './modules/providers/providers.module';
     WebhooksModule,
     HealthModule,
     ProvidersModule,
+    OrdersModule,
+    SupportModule,
   ],
 })
 export class AppModule {}

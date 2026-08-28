@@ -8,3 +8,5 @@ export * from './emergency';
 export * from './document';
 export * from './admin';
 export * from './consent';
+export * from './order';
+export * from './support';
