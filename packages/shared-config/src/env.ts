@@ -29,6 +29,10 @@ export const baseEnvSchema = z.object({
   JWT_REFRESH_TTL_SECONDS: z.coerce.number().int().positive().default(2592000),
 
   TAG_SIGNING_SECRET: z.string().min(32, 'TAG_SIGNING_SECRET must be at least 32 characters'),
+  PROVIDER_WEBHOOK_SECRET: z
+    .string()
+    .min(32, 'PROVIDER_WEBHOOK_SECRET must be at least 32 characters')
+    .default('dev-only-webhook-secret-do-not-use-in-production-32c'),
   FIELD_ENCRYPTION_ROOT_KEY: z
     .string()
     .min(32, 'FIELD_ENCRYPTION_ROOT_KEY must be at least 32 characters (dev key; use KMS in prod)'),
@@ -56,6 +60,9 @@ export const baseEnvSchema = z.object({
   RETENTION_SCAN_SESSION_DAYS: z.coerce.number().int().positive().default(30),
   RETENTION_ALERT_EVENT_DAYS: z.coerce.number().int().positive().default(180),
   ACCOUNT_DELETION_GRACE_DAYS: z.coerce.number().int().positive().default(30),
+
+  SWAGGER_ENABLED: boolFromEnv,
+  ADMIN_MOCK_SSO_ENABLED: boolFromEnv,
 
   CORS_ALLOWED_ORIGINS: z
     .string()

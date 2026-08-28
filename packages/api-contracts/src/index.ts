@@ -7,3 +7,4 @@ export * from './notification-preferences';
 export * from './emergency';
 export * from './document';
 export * from './admin';
+export * from './consent';

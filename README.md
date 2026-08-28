@@ -47,9 +47,10 @@ npm run dev:scanner          # http://localhost:3000  (in a second terminal)
 npm run dev:admin            # http://localhost:3002  (in a third terminal)
 ```
 
-Try it: `http://localhost:3000/t/DEMO0001?sig=devseed` opens the scanner
-portal against a seeded demo tag (see `docs/LOCAL_DEVELOPMENT.md` for the
-full seed catalogue, including admin login credentials for dev).
+Try it: the seed script prints an exact scanner URL for a demo tag (e.g.
+`http://localhost:3000/t/<opaqueId>.<signature>`) — see
+`docs/LOCAL_DEVELOPMENT.md` for the full seed catalogue, including admin
+login credentials for dev.
 
 Mobile app:
 
