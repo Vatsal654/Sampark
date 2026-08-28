@@ -72,8 +72,8 @@ lib/
 flutter test
 ```
 
-`test/` currently covers the phone-normalization and tag-ID-extraction
-pure logic. Widget/integration tests for the full onboarding → activation
-→ alerts flow are the natural next addition once the platform folders
-above are generated and a device/emulator is available to run them
-against.
+`test/` covers the phone-normalization and tag-ID-extraction pure logic,
+plus a widget test for the phone entry screen. Wider integration tests for
+the full onboarding → activation → alerts flow are the natural next
+addition once the platform folders above are generated and a device/
+emulator is available to run them against.

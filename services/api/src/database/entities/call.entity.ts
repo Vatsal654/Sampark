@@ -21,7 +21,7 @@ export class OtpChallengeEntity {
   @Column({ type: 'varchar', length: 64 })
   phoneLookupHash!: string;
 
-  @Column({ type: 'varchar', length: 20 })
+  @Column({ type: 'varchar', length: 40 })
   purpose!: 'owner_login' | 'scanner_call_verification';
 
   @Column({ type: 'varchar', length: 100 })

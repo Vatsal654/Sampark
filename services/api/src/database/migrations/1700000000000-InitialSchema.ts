@@ -161,7 +161,7 @@ export class InitialSchema1700000000000 implements MigrationInterface {
       CREATE TABLE otp_challenges (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         "phoneLookupHash" VARCHAR(64) NOT NULL,
-        purpose VARCHAR(20) NOT NULL,
+        purpose VARCHAR(40) NOT NULL,
         "codeHash" VARCHAR(100) NOT NULL,
         "attemptCount" INT NOT NULL DEFAULT 0,
         consumed BOOLEAN NOT NULL DEFAULT false,
@@ -203,7 +203,7 @@ export class InitialSchema1700000000000 implements MigrationInterface {
       CREATE TABLE emergency_profiles (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         "userId" UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
-        "bloodGroup" VARCHAR(5) NOT NULL DEFAULT 'unknown',
+        "bloodGroup" VARCHAR(10) NOT NULL DEFAULT 'unknown',
         "allergiesNoteEncrypted" TEXT,
         "safeInstructionsEncrypted" TEXT,
         "shareBloodGroup" BOOLEAN NOT NULL DEFAULT false,

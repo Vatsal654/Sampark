@@ -23,7 +23,7 @@ export class EmergencyProfileEntity {
   @JoinColumn({ name: 'userId' })
   user!: UserEntity;
 
-  @Column({ type: 'varchar', length: 5, default: 'unknown' })
+  @Column({ type: 'varchar', length: 10, default: 'unknown' })
   bloodGroup!: string;
 
   @Column({ type: 'text', nullable: true })

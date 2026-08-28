@@ -1,8 +1,11 @@
 /**
  * Purpose: Wires the shared, zod-validated environment config
  * (packages/shared-config) into Nest's DI as a global provider.
- * Responsibilities: Parses `process.env` once at boot and exposes the
- * frozen, typed result under the APP_CONFIG token.
+ * Responsibilities: Parses `process.env` when the module is instantiated
+ * (via useFactory, not useValue — useValue would bake in whatever
+ * process.env held at the moment this file was first imported, which is
+ * import time, not app-boot time) and exposes the frozen, typed result
+ * under the APP_CONFIG token.
  * Security: Fails fast (throws) on missing/invalid secrets rather than
  * booting with an insecure default — see shared-config/env.ts.
  * Related: packages/shared-config, every module that injects APP_CONFIG.
@@ -15,7 +18,7 @@ export type AppConfig = BaseEnv;
 
 @Global()
 @Module({
-  providers: [{ provide: APP_CONFIG, useValue: loadEnv(baseEnvSchema) }],
+  providers: [{ provide: APP_CONFIG, useFactory: () => loadEnv(baseEnvSchema) }],
   exports: [APP_CONFIG],
 })
 export class ConfigModule {}

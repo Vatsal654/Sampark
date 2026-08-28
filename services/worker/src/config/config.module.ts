@@ -16,7 +16,7 @@ export const WORKER_CONFIG = 'WORKER_CONFIG';
 
 @Global()
 @Module({
-  providers: [{ provide: WORKER_CONFIG, useValue: loadEnv(workerEnvSchema) }],
+  providers: [{ provide: WORKER_CONFIG, useFactory: () => loadEnv(workerEnvSchema) }],
   exports: [WORKER_CONFIG],
 })
 export class ConfigModule {}
