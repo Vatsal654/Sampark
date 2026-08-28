@@ -1,0 +1,30 @@
+{
+  "name": "sampark",
+  "private": true,
+  "description": "Sampark - a Nepal-first vehicle-contact platform monorepo",
+  "workspaces": [
+    "apps/scanner-portal",
+    "apps/admin",
+    "services/api",
+    "services/worker",
+    "packages/api-contracts",
+    "packages/shared-security",
+    "packages/shared-config"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "dev:api": "npm run start:dev --workspace services/api",
+    "dev:worker": "npm run start:dev --workspace services/worker",
+    "dev:scanner": "npm run dev --workspace apps/scanner-portal",
+    "dev:admin": "npm run dev --workspace apps/admin"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
