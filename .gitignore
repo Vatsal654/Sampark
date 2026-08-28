@@ -43,6 +43,9 @@ pnpm-debug.log*
 # Local object storage / db volumes
 infra/docker/volumes/
 
+# Redis dump files from local/native Redis runs (e.g. manual dev-server testing)
+dump.rdb
+
 # Terraform
 infra/terraform/**/.terraform/
 infra/terraform/**/*.tfstate
