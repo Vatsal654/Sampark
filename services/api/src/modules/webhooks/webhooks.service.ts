@@ -17,7 +17,7 @@ import { BadRequestException, ConflictException, Inject, Injectable } from '@nes
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { ProviderWebhookEventEntity, CallSessionEntity } from '../../database/entities';
+import { ProviderWebhookEventEntity, CallSessionEntity, AlertDeliveryEntity } from '../../database/entities';
 import { APP_CONFIG, type AppConfig } from '../../config/config.module';
 
 const TIMESTAMP_TOLERANCE_SECONDS = 5 * 60;
@@ -35,6 +35,7 @@ export class WebhooksService {
   constructor(
     @InjectRepository(ProviderWebhookEventEntity) private readonly events: Repository<ProviderWebhookEventEntity>,
     @InjectRepository(CallSessionEntity) private readonly callSessions: Repository<CallSessionEntity>,
+    @InjectRepository(AlertDeliveryEntity) private readonly alertDeliveries: Repository<AlertDeliveryEntity>,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
@@ -65,6 +66,8 @@ export class WebhooksService {
 
     if (provider === 'voice') {
       await this.applyVoiceEvent(envelope);
+    } else if (provider === 'sms' || provider === 'whatsapp') {
+      await this.applyDeliveryEvent(envelope);
     }
   }
 
@@ -101,5 +104,24 @@ export class WebhooksService {
       session.providerBridgeReference = envelope.payload.providerBridgeReference;
     }
     await this.callSessions.save(session);
+  }
+
+  /** Applies an SMS/WhatsApp delivery-status callback to the matching alert_deliveries row. */
+  private async applyDeliveryEvent(envelope: WebhookEnvelope): Promise<void> {
+    const alertDeliveryId = envelope.payload.alertDeliveryId;
+    if (typeof alertDeliveryId !== 'string') return;
+    const delivery = await this.alertDeliveries.findOne({ where: { id: alertDeliveryId } });
+    if (!delivery) return;
+
+    if (envelope.eventType === 'delivered') {
+      delivery.status = 'delivered';
+    } else if (envelope.eventType === 'failed') {
+      delivery.status = 'failed';
+      delivery.failureReason = typeof envelope.payload.reason === 'string' ? envelope.payload.reason : 'Provider reported failure';
+    } else {
+      return;
+    }
+    delivery.lastAttemptedAt = new Date();
+    await this.alertDeliveries.save(delivery);
   }
 }
