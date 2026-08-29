@@ -36,11 +36,23 @@ class ApiClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
+          // Logs the exact outbound method + full URL (never the body, which can hold a phone
+          // number, OTP code, or token) for every request the app makes, success or failure. This
+          // is what actually answers "did the OTP request even leave the device, and to where" —
+          // the per-screen error logging only fires once something has already gone wrong.
+          developer.log('-> ${options.method} ${options.baseUrl}${options.path}', name: 'sampark.api');
           final token = await tokenStorage.readAccessToken();
           if (token != null && !options.path.startsWith('/public/') && !options.path.startsWith('/auth/otp')) {
             options.headers['Authorization'] = 'Bearer $token';
           }
           handler.next(options);
+        },
+        onResponse: (response, handler) {
+          developer.log(
+            '<- ${response.statusCode} ${response.requestOptions.method} ${response.requestOptions.path}',
+            name: 'sampark.api',
+          );
+          handler.next(response);
         },
         onError: (error, handler) async {
           final isUnauthorized = error.response?.statusCode == 401;

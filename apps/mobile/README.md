@@ -77,6 +77,21 @@ Flutter DevTools' Logging view under the `sampark.api` log name — see
 `core/network/api_error_logger.dart`. The on-screen error message stays
 generic on purpose; the console log has the actual detail.
 
+Every request `ApiClient` sends is also traced under that same
+`sampark.api` log name, success or failure: a `-> METHOD baseUrl+path`
+line right before it leaves the device, and a `<- status METHOD path`
+line when a response comes back. This is what actually answers "did the
+request even leave the app, and to which host/port" — if you tap Send
+code and never see the matching `-> POST .../auth/otp/request` line at
+all, the tap isn't reaching `ApiClient` (a UI/state bug); if you see the
+`->` line but never a matching `<-` line, the request left the device but
+got no response (network/firewall/host problem, not an app bug); if you
+see both, the request reached *some* server and got a response — at that
+point check the API process is actually running your latest pulled code
+(the dev-mock OTP print and `/v1/dev/simulator` need it) and check
+`GET http://<host>:3001/v1/dev/simulator` directly, which needs no auth
+and works independent of what shows up in the terminal.
+
 ## Architecture
 
 ```
