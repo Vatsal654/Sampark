@@ -20,6 +20,11 @@ class VehicleListScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: Text(translate(locale, 'vehicles'))),
       floatingActionButton: FloatingActionButton.extended(
+        // Explicit, unique heroTag: HomeShell keeps every tab (including DocumentVaultScreen,
+        // which also has its own FAB) mounted simultaneously via IndexedStack, so without this
+        // both FABs share Flutter's implicit default tag and any navigation within this subtree
+        // throws "There are multiple heroes that share the same tag".
+        heroTag: 'vehicleListFab',
         onPressed: () => context.push('/vehicles/add'),
         icon: const Icon(Icons.add),
         label: Text(translate(locale, 'addVehicle')),

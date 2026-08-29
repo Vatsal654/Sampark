@@ -42,6 +42,8 @@ class DocumentVaultScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: Text(translate(locale, 'documents'))),
       floatingActionButton: FloatingActionButton.extended(
+        // Explicit, unique heroTag — see the matching comment in vehicle_list_screen.dart.
+        heroTag: 'documentVaultFab',
         onPressed: () => _pickAndUpload(context, ref),
         icon: const Icon(Icons.upload_file),
         label: Text(translate(locale, 'uploadDocument')),
