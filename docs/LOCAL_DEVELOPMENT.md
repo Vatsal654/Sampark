@@ -61,12 +61,27 @@ npm run --workspace apps/admin test:e2e              # Playwright
 cd apps/mobile && flutter test
 ```
 
-## Notification simulator
+## Notification simulator (and where OTP codes go in development)
 
-With the stack running, open `http://localhost:3001/dev/simulator` (dev
-builds only, disabled when `NODE_ENV=production`) to see every mock
-push/SMS/WhatsApp/voice event the worker "sends", useful for demoing the
-masked-call and alert-delivery flows without real phones.
+`OTP_PROVIDER=mock` (the `.env.example` default) never sends a real SMS —
+there is no telecom account behind it. Instead, every OTP it "sends" goes
+to two places, both dev-only:
+
+1. **The API process's own terminal** — `services/api`'s stdout prints a
+   line like `[DEV ONLY — mock OTP] code 123456 for +977 98•••••678 (not a
+   real SMS)` for every code generated. If you started the API with
+   `npm run dev:api` in a terminal tab, this is right there in that tab's
+   scrollback.
+2. **`GET http://localhost:3001/v1/dev/simulator`** — note the `/v1`
+   prefix (the whole API is mounted under it except `/health`). Open that
+   URL in a browser or `curl` it; the response lists the most recent mock
+   events (OTP, push, SMS, WhatsApp, voice), newest first, so it also
+   works if the terminal output already scrolled past.
+
+Both are hard-disabled when `NODE_ENV=production` — this is a
+development convenience, not something reachable in a real deployment,
+and OTP codes are never included in any other log line or API response
+(see `docs/SECURITY.md`).
 
 ## Common issues
 

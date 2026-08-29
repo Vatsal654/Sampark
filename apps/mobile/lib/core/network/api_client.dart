@@ -10,6 +10,8 @@
 /// Related: core/storage/secure_token_storage.dart.
 library;
 
+import 'dart:developer' as developer;
+
 import 'package:dio/dio.dart';
 
 import '../storage/secure_token_storage.dart';
@@ -26,6 +28,11 @@ class ForcedLogoutException implements Exception {}
 class ApiClient {
   ApiClient({required this.tokenStorage, Dio? dio, String? baseUrl})
       : _dio = dio ?? Dio(BaseOptions(baseUrl: baseUrl ?? _defaultBaseUrl)) {
+    // Every call this app makes — including both /auth/otp/request and /auth/otp/verify — goes
+    // through this single Dio instance, so there is exactly one base URL for the whole app; it
+    // cannot drift between endpoints. This line exists so that's actually verifiable at a glance:
+    // print it once at startup instead of having to guess whether --dart-define took effect.
+    developer.log('API base URL: ${_dio.options.baseUrl}', name: 'sampark.api');
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
