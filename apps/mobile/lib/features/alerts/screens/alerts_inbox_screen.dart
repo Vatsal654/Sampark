@@ -225,7 +225,11 @@ class _AlertCardState extends ConsumerState<_AlertCard> {
                     children: [
                       Icon(Icons.archive, size: 16, color: Theme.of(context).colorScheme.secondary),
                       const SizedBox(width: 4),
-                      Text(translate(locale, 'archivedLabel'), style: Theme.of(context).textTheme.bodySmall),
+                      Text(
+                        translate(locale, 'archivedLabel'),
+                        key: Key('archived-status-badge-${alert.id}'),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                       const SizedBox(width: 8),
                       TextButton(
                         onPressed: _unarchiving ? null : _handleUnarchive,

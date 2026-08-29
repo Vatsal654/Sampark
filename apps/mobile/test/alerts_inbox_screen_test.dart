@@ -104,6 +104,13 @@ Future<void> _switchToArchivedTab(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+/// The archived-status badge (alerts_inbox_screen.dart's `Text(translate(locale,
+/// 'archivedLabel'), key: Key('archived-status-badge-${alert.id}'), ...)`) must be found by this
+/// key, never by `find.text(translate(AppLocale.en, 'archivedLabel'))` — that string is also
+/// "Archived", the TabBar's Archived-tab label, which is always present in the tree regardless of
+/// which tab is selected, so a bare text search matches both and over/under-counts.
+Key _archivedBadgeKey(String alertId) => Key('archived-status-badge-$alertId');
+
 void main() {
   testWidgets('renders an alert from the Active tab with its category, acknowledge, and archive actions', (tester) async {
     final controller = _FakeAlertsController([_seedAlert()]);
@@ -163,11 +170,13 @@ void main() {
 
     // Archived tab: exactly the archived alert appears there, with an Unarchive action — proving
     // this is a real server-state-driven filter (the fake's refetched `_alerts` list), not a
-    // local-only "hide this card" flag.
+    // local-only "hide this card" flag. The badge is found by its own Key rather than
+    // find.text('Archived') — that string also matches the "Archived" TabBar label, which is
+    // always present in the tree regardless of which tab is selected.
     await _switchToArchivedTab(tester);
     expect(find.text('blocking access'), findsOneWidget);
     expect(find.text('lights on'), findsNothing);
-    expect(find.text(translate(AppLocale.en, 'archivedLabel')), findsOneWidget);
+    expect(find.byKey(_archivedBadgeKey('alert-1')), findsOneWidget);
     expect(find.widgetWithText(TextButton, translate(AppLocale.en, 'unarchive')), findsOneWidget);
   });
 
@@ -181,10 +190,14 @@ void main() {
 
     expect(find.text(translate(AppLocale.en, 'errorGeneric')), findsOneWidget);
     expect(find.widgetWithText(TextButton, translate(AppLocale.en, 'archive')), findsOneWidget);
-    expect(find.text(translate(AppLocale.en, 'archivedLabel')), findsNothing);
+    // No archived badge for this alert anywhere in the tree — checked by key (not
+    // find.text('Archived'), which would also match the always-present "Archived" tab label).
+    expect(find.byKey(_archivedBadgeKey('alert-1')), findsNothing);
 
     await _switchToArchivedTab(tester);
     expect(find.text(translate(AppLocale.en, 'noArchivedAlertsYet')), findsOneWidget);
+    // Confirms the failed alert really isn't hiding in the Archived tab under a different finder.
+    expect(find.byKey(_archivedBadgeKey('alert-1')), findsNothing);
   });
 
   testWidgets('unarchive success: moves the alert back from Archived to Active', (tester) async {
@@ -246,6 +259,8 @@ void main() {
 
     expect(find.text(translate(AppLocale.en, 'errorGeneric')), findsOneWidget);
     expect(find.widgetWithText(TextButton, translate(AppLocale.en, 'unarchive')), findsOneWidget);
+    // The alert was never actually unarchived — it must still carry the archived badge.
+    expect(find.byKey(_archivedBadgeKey('alert-1')), findsOneWidget);
   });
 
   test('archived state persists after a fresh refetch (simulating reopening the screen / an app restart)', () async {
@@ -270,9 +285,20 @@ void main() {
     // state, because the fake's `_alerts` field (standing in for the real database) was mutated,
     // not just some in-memory UI flag that a fresh instance wouldn't have.
     container.invalidate(alertsControllerProvider);
-    final refetched = await container.read(alertsControllerProvider.future);
+    var refetched = await container.read(alertsControllerProvider.future);
     expect(refetched.single.acknowledgedAt, isNotNull);
     expect(refetched.single.archivedAt, isNotNull);
+
+    await container.read(alertsControllerProvider.notifier).unarchive('alert-1');
+    expect((await container.read(alertsControllerProvider.future)).single.archivedAt, isNull);
+
+    // Same check again for unarchive specifically — a fresh refetch must show archivedAt back to
+    // null, not just the in-memory result of the unarchive() call itself.
+    container.invalidate(alertsControllerProvider);
+    refetched = await container.read(alertsControllerProvider.future);
+    expect(refetched.single.archivedAt, isNull);
+    // Acknowledge is independent of archive/unarchive — still true after unarchiving.
+    expect(refetched.single.acknowledgedAt, isNotNull);
   });
 
   testWidgets('shows the shared-location label and an Open in Maps action when the scanner opted in', (tester) async {
