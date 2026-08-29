@@ -10,6 +10,8 @@
 /// Related: core/network/api_client.dart, core/storage/secure_token_storage.dart.
 library;
 
+import 'dart:developer' as developer;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
@@ -37,7 +39,12 @@ class AuthController extends StateNotifier<AuthState> {
   final SecureTokenStorage _tokenStorage;
 
   Future<void> _bootstrap() async {
+    // Temporary diagnostic — timestamps this against the router's redirect log line (see
+    // app_router.dart) to show whether redirect() ran (with status still `unknown`) before or
+    // after this resolves. Logs only whether a token exists, never its value.
+    developer.log('bootstrap start (status=unknown until this resolves)', name: 'sampark.auth');
     final token = await _tokenStorage.readAccessToken();
+    developer.log('bootstrap resolved: hasStoredToken=${token != null}', name: 'sampark.auth');
     state = AuthState(status: token != null ? AuthStatus.signedIn : AuthStatus.signedOut);
   }
 

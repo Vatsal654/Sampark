@@ -6,6 +6,8 @@
 /// Related: features/auth/providers/auth_controller.dart, shared/widgets/home_shell.dart.
 library;
 
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -28,6 +30,14 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/home',
     redirect: (context, state) {
       final isOnboardingRoute = state.matchedLocation.startsWith('/onboarding');
+      // Temporary diagnostic (see the "Something went wrong on every tab" investigation): proves
+      // whether this evaluates with status still AuthStatus.unknown before AuthController's
+      // _bootstrap() resolves — if so, the `if (unknown) return null;` line below lets
+      // /home (and every owner-authenticated provider it mounts) through with no session at all.
+      developer.log(
+        'router redirect: status=${authState.status} matchedLocation=${state.matchedLocation} isOnboardingRoute=$isOnboardingRoute',
+        name: 'sampark.auth',
+      );
       if (authState.status == AuthStatus.unknown) return null;
       if (authState.status == AuthStatus.signedOut && !isOnboardingRoute) return '/onboarding';
       if (authState.status == AuthStatus.signedIn && isOnboardingRoute) return '/home';
