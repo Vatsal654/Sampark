@@ -121,6 +121,21 @@ more settings need to point at your LAN IP too:
    to restart the API process after editing it, not export the
    variables into your shell yourself.
 
+### Location sharing over a LAN IP (physical-device testing)
+
+The scanner portal's "Share my location" option (`components/AlertFlow.tsx`) uses the
+browser's Geolocation API, which every major browser — including iOS Safari — restricts to
+**secure contexts**: pages served over `https://`, plus the special-cased `localhost`/
+`127.0.0.1`/`::1` loopback origins. **A page loaded over plain `http://` from a LAN IP (exactly
+the `http://192.168.1.8:3000` setup above) is NOT a secure context.** On that origin,
+`navigator.geolocation.getCurrentPosition()` fails without ever showing the native permission
+prompt at all — this is a browser platform restriction, not an app bug, and no application code
+can work around it. `lib/geolocation.ts`'s `isSecureContextForGeolocation()` detects this and the
+scanner shows "Location unavailable — send without location" immediately rather than pretending
+to ask; the alert can still be sent without a location. To actually test location sharing (and
+see the real permission prompt) on a physical device, either serve the scanner portal over HTTPS,
+or test from a browser/emulator on the same machine as the API (where `localhost` applies).
+
 ### Error states, and reading them without a devtools console
 
 The tag lookup classifies a failure instead of showing "Tag not found"
@@ -208,6 +223,12 @@ npm run --workspace apps/scanner-portal test:e2e:alert # Playwright, against a r
                                                         # "the tag lookup GET works but Send Alert
                                                         # silently doesn't reach the backend" and asserts
                                                         # the scanner never shows "Alert sent" for it
+npm run --workspace apps/scanner-portal test:e2e:location # Playwright — the "Share my location"
+                                                            # checkbox → real Geolocation permission
+                                                            # (Playwright's grantPermissions/setGeolocation
+                                                            # mocking) → POST body chain, against a real
+                                                            # HTTP mock server. Chromium only, not
+                                                            # Safari/iOS — see its header comment
 npm run --workspace apps/admin test:e2e              # Playwright
 cd apps/mobile && flutter test
 ```

@@ -1,14 +1,21 @@
-/// Purpose: Owner alert inbox — shows category, time, delivery status,
-/// a coarse location label, and (only when the scanner explicitly opted
-/// in) the scanner's exact shared location. Never shows a scanner phone
-/// number, which this app never receives for anonymous alerts.
-/// Responsibilities: Acknowledge/Archive are never optimistic — the
-/// button shows a spinner while the mutation is in flight, a failure is
-/// surfaced via a SnackBar with the button left untouched (so it can be
-/// retried), and the "Acknowledged"/"Archived" state shown afterward
-/// comes only from the real, refetched server response (see
-/// AlertsController.acknowledge/archive, which await the POST and then
-/// re-fetch the whole list before returning).
+/// Purpose: Owner alert inbox — Active/Archived tabs, category, time,
+/// delivery status, a coarse location label, and (only when the scanner
+/// explicitly opted in) the scanner's exact shared location. Never shows
+/// a scanner phone number, which this app never receives for anonymous
+/// alerts.
+/// Responsibilities: Acknowledge/Archive/Unarchive are never optimistic
+/// — each button shows a spinner while its mutation is in flight, a
+/// failure is surfaced via a SnackBar with the button left untouched (so
+/// it can be retried), and the state shown afterward (which tab an alert
+/// appears under, the "Acknowledged" badge) comes only from the real,
+/// refetched server response (see AlertsController.acknowledge/
+/// archive/unarchive, which each await their POST and then re-fetch the
+/// whole list before returning) — an alert moves from Active to Archived
+/// purely because a fresh GET now returns a non-null archivedAt for it,
+/// never a local-only flag. Reopening the screen or restarting the app
+/// always re-fetches from the server (AutoDisposeAsyncNotifier has no
+/// local cache to go stale), so the Active/Archived split is correct
+/// immediately, not just within one session.
 library;
 
 import 'package:flutter/material.dart';
@@ -27,23 +34,53 @@ class AlertsInboxScreen extends ConsumerWidget {
     final locale = ref.watch(localeProvider);
     final alertsAsync = ref.watch(alertsControllerProvider);
 
-    return Scaffold(
-      appBar: AppBar(title: Text(translate(locale, 'alerts'))),
-      body: alertsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text(translate(locale, 'errorGeneric'))),
-        data: (alerts) {
-          if (alerts.isEmpty) {
-            return Center(child: Text(translate(locale, 'noAlertsYet')));
-          }
-          return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(alertsControllerProvider),
-            child: ListView.builder(
-              itemCount: alerts.length,
-              itemBuilder: (context, index) => _AlertCard(alert: alerts[index]),
-            ),
-          );
-        },
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(translate(locale, 'alerts')),
+          bottom: TabBar(
+            tabs: [
+              Tab(text: translate(locale, 'activeAlertsTab')),
+              Tab(text: translate(locale, 'archivedAlertsTab')),
+            ],
+          ),
+        ),
+        body: alertsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => Center(child: Text(translate(locale, 'errorGeneric'))),
+          data: (alerts) {
+            final active = alerts.where((a) => a.archivedAt == null).toList();
+            final archived = alerts.where((a) => a.archivedAt != null).toList();
+            return TabBarView(
+              children: [
+                _AlertList(ref: ref, alerts: active, emptyLabel: translate(locale, 'noAlertsYet')),
+                _AlertList(ref: ref, alerts: archived, emptyLabel: translate(locale, 'noArchivedAlertsYet')),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _AlertList extends StatelessWidget {
+  const _AlertList({required this.ref, required this.alerts, required this.emptyLabel});
+  final WidgetRef ref;
+  final List<AlertEvent> alerts;
+  final String emptyLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    if (alerts.isEmpty) {
+      return Center(child: Text(emptyLabel));
+    }
+    return RefreshIndicator(
+      onRefresh: () async => ref.invalidate(alertsControllerProvider),
+      child: ListView.builder(
+        itemCount: alerts.length,
+        itemBuilder: (context, index) => _AlertCard(alert: alerts[index]),
       ),
     );
   }
@@ -60,6 +97,7 @@ class _AlertCard extends ConsumerStatefulWidget {
 class _AlertCardState extends ConsumerState<_AlertCard> {
   bool _acknowledging = false;
   bool _archiving = false;
+  bool _unarchiving = false;
 
   Future<void> _handleAcknowledge() async {
     setState(() => _acknowledging = true);
@@ -80,6 +118,17 @@ class _AlertCardState extends ConsumerState<_AlertCard> {
       _showError();
     } finally {
       if (mounted) setState(() => _archiving = false);
+    }
+  }
+
+  Future<void> _handleUnarchive() async {
+    setState(() => _unarchiving = true);
+    try {
+      await ref.read(alertsControllerProvider.notifier).unarchive(widget.alert.id);
+    } catch (_) {
+      _showError();
+    } finally {
+      if (mounted) setState(() => _unarchiving = false);
     }
   }
 
@@ -177,6 +226,13 @@ class _AlertCardState extends ConsumerState<_AlertCard> {
                       Icon(Icons.archive, size: 16, color: Theme.of(context).colorScheme.secondary),
                       const SizedBox(width: 4),
                       Text(translate(locale, 'archivedLabel'), style: Theme.of(context).textTheme.bodySmall),
+                      const SizedBox(width: 8),
+                      TextButton(
+                        onPressed: _unarchiving ? null : _handleUnarchive,
+                        child: _unarchiving
+                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                            : Text(translate(locale, 'unarchive')),
+                      ),
                     ],
                   ),
               ],

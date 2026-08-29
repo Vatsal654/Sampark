@@ -30,7 +30,30 @@ export const DICTIONARY = {
   categoryParkingConcern: { en: 'Parking concern', ne: 'पार्किङ सम्बन्धी समस्या' },
   categoryOther: { en: 'Other', ne: 'अन्य' },
   optionalNote: { en: 'Add a short note (optional)', ne: 'छोटो टिप्पणी थप्नुहोस् (वैकल्पिक)' },
-  shareLocation: { en: 'Share my location for this alert', ne: 'यस सतर्कताको लागि मेरो स्थान साझा गर्नुहोस्' },
+  shareLocation: { en: 'Share my location with the vehicle owner', ne: 'सवारी मालिकसँग मेरो स्थान साझा गर्नुहोस्' },
+  locationRequesting: { en: 'Requesting your location…', ne: 'तपाईंको स्थान अनुरोध गर्दै…' },
+  locationReady: { en: 'Location ready to share', ne: 'स्थान साझा गर्न तयार छ' },
+  locationUnavailable: { en: 'Location unavailable — send without location', ne: 'स्थान उपलब्ध छैन — स्थान बिना पठाउनुहोस्' },
+  locationReasonInsecureContext: {
+    en: 'This preview address doesn\'t support location sharing (it needs a secure https:// connection). You can still send the alert.',
+    ne: 'यो पूर्वावलोकन ठेगानाले स्थान साझेदारी समर्थन गर्दैन (यसलाई सुरक्षित https:// जडान चाहिन्छ)। तपाईं अझै पनि सतर्कता पठाउन सक्नुहुन्छ।',
+  },
+  locationReasonPermissionDenied: {
+    en: 'Location access was denied. You can still send the alert without it.',
+    ne: 'स्थान पहुँच अस्वीकार गरियो। तपाईं यसबिना नै सतर्कता पठाउन सक्नुहुन्छ।',
+  },
+  locationReasonPositionUnavailable: {
+    en: "Your device couldn't determine its location right now. You can still send the alert.",
+    ne: 'तपाईंको यन्त्रले अहिले स्थान पत्ता लगाउन सकेन। तपाईं अझै पनि सतर्कता पठाउन सक्नुहुन्छ।',
+  },
+  locationReasonTimeout: {
+    en: 'Finding your location took too long. You can still send the alert.',
+    ne: 'तपाईंको स्थान फेला पार्न धेरै समय लाग्यो। तपाईं अझै पनि सतर्कता पठाउन सक्नुहुन्छ।',
+  },
+  locationReasonUnsupported: {
+    en: "This browser doesn't support sharing location. You can still send the alert.",
+    ne: 'यो ब्राउजरले स्थान साझेदारी समर्थन गर्दैन। तपाईं अझै पनि सतर्कता पठाउन सक्नुहुन्छ।',
+  },
   submit: { en: 'Send', ne: 'पठाउनुहोस्' },
   cancel: { en: 'Cancel', ne: 'रद्द गर्नुहोस्' },
   alertSentTitle: { en: 'Alert sent securely', ne: 'सतर्कता सुरक्षित रूपमा पठाइयो' },

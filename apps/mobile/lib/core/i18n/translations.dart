@@ -98,8 +98,12 @@ const Map<String, Map<AppLocale, String>> _dictionary = {
   'reportLostAction': {AppLocale.en: 'Report Lost', AppLocale.ne: 'हराएको रिपोर्ट गर्नुहोस्'},
   'tagSectionTitle': {AppLocale.en: 'Tag', AppLocale.ne: 'ट्याग'},
   'noAlertsYet': {AppLocale.en: 'No alerts yet.', AppLocale.ne: 'अहिलेसम्म कुनै सतर्कता छैन।'},
+  'noArchivedAlertsYet': {AppLocale.en: 'No archived alerts.', AppLocale.ne: 'कुनै सङ्ग्रहित सतर्कता छैन।'},
+  'activeAlertsTab': {AppLocale.en: 'Active', AppLocale.ne: 'सक्रिय'},
+  'archivedAlertsTab': {AppLocale.en: 'Archived', AppLocale.ne: 'सङ्ग्रहित'},
   'acknowledge': {AppLocale.en: 'Acknowledge', AppLocale.ne: 'स्वीकार गर्नुहोस्'},
   'archive': {AppLocale.en: 'Archive', AppLocale.ne: 'सङ्ग्रह गर्नुहोस्'},
+  'unarchive': {AppLocale.en: 'Unarchive', AppLocale.ne: 'सङ्ग्रहबाट फर्काउनुहोस्'},
   'acknowledgedLabel': {AppLocale.en: 'Acknowledged', AppLocale.ne: 'स्वीकार गरियो'},
   'archivedLabel': {AppLocale.en: 'Archived', AppLocale.ne: 'सङ्ग्रहित'},
   'locationSharedLabel': {

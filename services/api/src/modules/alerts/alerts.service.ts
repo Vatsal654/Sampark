@@ -73,6 +73,13 @@ export class AlertsService {
     return { id: event.id, archivedAt: event.archivedAt.toISOString() };
   }
 
+  async unarchive(ownerId: string, alertId: string) {
+    const event = await this.getOwned(ownerId, alertId);
+    event.archivedAt = null;
+    await this.alertEvents.save(event);
+    return { id: event.id, archivedAt: null };
+  }
+
   async reportAbuse(ownerId: string, alertId: string, input: ReportAbuse) {
     const event = await this.getOwned(ownerId, alertId);
     event.reportedAsAbuse = true;

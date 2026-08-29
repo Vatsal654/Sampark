@@ -100,6 +100,50 @@ describe('Scanner alerts (e2e)', () => {
     expect(archive.status).toBe(201);
   });
 
+  it('unarchives an alert, restoring it to the active set', async () => {
+    const { owner, opaqueId, signature } = await activateTag(app);
+    const submit = await request(app.getHttpServer())
+      .post(`/v1/public/tags/${opaqueId}/alerts?sig=${signature}`)
+      .send({ category: 'other' });
+    const alertId = submit.body.alertId as string;
+
+    await request(app.getHttpServer())
+      .post(`/v1/owner/alerts/${alertId}/archive`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(201);
+
+    let inbox = await request(app.getHttpServer())
+      .get('/v1/owner/alerts')
+      .set('Authorization', `Bearer ${owner.accessToken}`);
+    expect(inbox.body.find((a: { id: string }) => a.id === alertId).archivedAt).toEqual(expect.any(String));
+
+    const unarchive = await request(app.getHttpServer())
+      .post(`/v1/owner/alerts/${alertId}/unarchive`)
+      .set('Authorization', `Bearer ${owner.accessToken}`);
+    expect(unarchive.status).toBe(201);
+    expect(unarchive.body.archivedAt).toBeNull();
+
+    // A fresh GET (not the mutation response) must also show it back in the active set.
+    inbox = await request(app.getHttpServer())
+      .get('/v1/owner/alerts')
+      .set('Authorization', `Bearer ${owner.accessToken}`);
+    expect(inbox.body.find((a: { id: string }) => a.id === alertId).archivedAt).toBeNull();
+  });
+
+  it('never lets one owner unarchive another owner\'s alert', async () => {
+    const { opaqueId, signature } = await activateTag(app);
+    const submit = await request(app.getHttpServer())
+      .post(`/v1/public/tags/${opaqueId}/alerts?sig=${signature}`)
+      .send({ category: 'other' });
+    const alertId = submit.body.alertId as string;
+    const otherOwner = await signUpOwner(app);
+
+    const response = await request(app.getHttpServer())
+      .post(`/v1/owner/alerts/${alertId}/unarchive`)
+      .set('Authorization', `Bearer ${otherOwner.accessToken}`);
+    expect(response.status).toBe(403);
+  });
+
   it('persists acknowledged/archived state across a fresh GET, not just in the mutation response', async () => {
     const { owner, opaqueId, signature } = await activateTag(app);
     const submit = await request(app.getHttpServer())

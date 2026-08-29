@@ -14,7 +14,8 @@
  * the alert-submission POST from the same page is silently blocked by
  * CORS with no server-side trace. See e2e/alert-submission.spec.ts for
  * which origin exercises which case.
- * Related: playwright.alert.config.ts, services/api/src/main.ts,
+ * Related: playwright.alert.config.ts, playwright.location.config.ts,
+ * e2e/location-sharing.spec.ts, services/api/src/main.ts,
  * services/api/src/modules/public-tag.
  */
 /* eslint-disable @typescript-eslint/no-require-imports -- plain CommonJS test fixture, run
@@ -25,7 +26,21 @@ const PORT = Number(process.env.MOCK_ALERT_PORT || 3001);
 const LOOKUP_ALLOWED = (process.env.MOCK_ALERT_LOOKUP_ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean);
 const SUBMIT_ALLOWED = (process.env.MOCK_ALERT_SUBMIT_ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean);
 
-const server = http.createServer((req, res) => {
+// Records the most recent alert-submission POST body so e2e/location-sharing.spec.ts can assert
+// on it via GET /__test/last-alert-body — the only way to verify what a real fetch() actually
+// sent, since page.route() interception never touches a real request/response cycle at all
+// (this whole mock server exists specifically to be a REAL HTTP endpoint, not an intercept).
+let lastAlertBody = null;
+
+function readBody(req) {
+  return new Promise((resolve) => {
+    let raw = '';
+    req.on('data', (chunk) => (raw += chunk));
+    req.on('end', () => resolve(raw));
+  });
+}
+
+const server = http.createServer(async (req, res) => {
   const origin = req.headers.origin;
   const isAlertsRoute = /\/alerts(\?|$)/.test(req.url || '');
   const allowList = isAlertsRoute ? SUBMIT_ALLOWED : LOOKUP_ALLOWED;
@@ -48,7 +63,14 @@ const server = http.createServer((req, res) => {
 
   res.setHeader('content-type', 'application/json');
 
+  if (req.method === 'GET' && req.url === '/__test/last-alert-body') {
+    res.writeHead(200);
+    res.end(lastAlertBody ?? 'null');
+    return;
+  }
+
   if (req.method === 'POST' && isAlertsRoute) {
+    lastAlertBody = await readBody(req);
     res.writeHead(201);
     res.end(JSON.stringify({ alertId: 'mock-alert-id-0001', acknowledged: true }));
     return;

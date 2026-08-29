@@ -18,7 +18,21 @@ import { useState } from 'react';
 import { useLocale } from './LocaleProvider';
 import { submitAlert, buildAlertPath, ApiError, API_BASE_URL, type ApiErrorKind } from '../lib/api-client';
 import { AlertDevDiagnostics, type SubmissionDiagnostics } from './DevDiagnostics';
+import {
+  isSecureContextForGeolocation,
+  captureLocation,
+  type LocationCaptureState,
+  type LocationUnavailableReason,
+} from '../lib/geolocation';
 import type { TranslationKey } from '../lib/i18n';
+
+const LOCATION_REASON_COPY: Record<LocationUnavailableReason, TranslationKey> = {
+  insecure_context: 'locationReasonInsecureContext',
+  unsupported: 'locationReasonUnsupported',
+  permission_denied: 'locationReasonPermissionDenied',
+  position_unavailable: 'locationReasonPositionUnavailable',
+  timeout: 'locationReasonTimeout',
+};
 
 const CATEGORIES: { value: string; labelKey: TranslationKey }[] = [
   { value: 'blocking_access', labelKey: 'categoryBlockingAccess' },
@@ -66,9 +80,33 @@ export function AlertFlow({
   const [category, setCategory] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [shareLocation, setShareLocation] = useState(false);
+  const [locationState, setLocationState] = useState<LocationCaptureState>({ status: 'idle' });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<{ titleKey: TranslationKey; bodyKey: TranslationKey; kind: ApiErrorKind | 'client' } | null>(null);
   const [diagnostics, setDiagnostics] = useState<SubmissionDiagnostics>(() => initialDiagnostics(opaqueId, signature));
+
+  // The ONLY place location capture is ever initiated — a direct response to the user checking
+  // this specific box, never on page load, tag lookup, or any other trigger. Unchecking discards
+  // any location already captured (never resurrected by re-checking without a fresh capture), so
+  // opting out is always a hard "no location" rather than a stale cached one.
+  async function handleShareLocationChange(checked: boolean) {
+    setShareLocation(checked);
+    if (!checked) {
+      setLocationState({ status: 'idle' });
+      return;
+    }
+    if (typeof window === 'undefined' || !isSecureContextForGeolocation(window)) {
+      setLocationState({ status: 'unavailable', reason: 'insecure_context' });
+      return;
+    }
+    if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
+      setLocationState({ status: 'unavailable', reason: 'unsupported' });
+      return;
+    }
+    setLocationState({ status: 'requesting' });
+    const result = await captureLocation(navigator.geolocation);
+    setLocationState(result);
+  }
 
   async function handleSubmit() {
     if (!category) return;
@@ -85,16 +123,12 @@ export function AlertFlow({
     }));
 
     try {
-      let location: { latitude: number; longitude: number } | undefined;
-      if (shareLocation && 'geolocation' in navigator) {
-        location = await new Promise((resolve) => {
-          navigator.geolocation.getCurrentPosition(
-            (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
-            () => resolve(undefined),
-            { timeout: 5000 },
-          );
-        });
-      }
+      // Only ever attached when the user opted in AND capture actually succeeded — never a
+      // stale/leftover value from before the checkbox was toggled off, and never something this
+      // function tries to (re-)request itself; capture already happened (or failed, or is still
+      // in flight, in which case the submit button is disabled — see the JSX below) the moment
+      // the checkbox was checked.
+      const location = shareLocation && locationState.status === 'ready' ? locationState.location : undefined;
       // Only reached once the backend has responded 2xx and returned a real alertId — this is
       // the sole path to onDone(), so the confirmation screen can never show before the API has
       // actually created the AlertEvent.
@@ -150,9 +184,22 @@ export function AlertFlow({
         <textarea id="alert-note" maxLength={280} value={note} onChange={(e) => setNote(e.target.value)} />
       </div>
       <div className="checkbox-row">
-        <input id="share-location" type="checkbox" checked={shareLocation} onChange={(e) => setShareLocation(e.target.checked)} />
+        <input
+          id="share-location"
+          type="checkbox"
+          checked={shareLocation}
+          disabled={locationState.status === 'requesting'}
+          onChange={(e) => void handleShareLocationChange(e.target.checked)}
+        />
         <label htmlFor="share-location">{t('shareLocation')}</label>
       </div>
+      {shareLocation && locationState.status === 'requesting' && <p className="help-text">{t('locationRequesting')}</p>}
+      {shareLocation && locationState.status === 'ready' && <p className="help-text">{t('locationReady')}</p>}
+      {shareLocation && locationState.status === 'unavailable' && (
+        <p className="help-text" role="status">
+          {t('locationUnavailable')} — {t(LOCATION_REASON_COPY[locationState.reason])}
+        </p>
+      )}
       {error && (
         <div role="alert" className="card" style={{ borderColor: 'var(--color-danger)' }}>
           <p style={{ margin: 0, fontWeight: 'bold', color: 'var(--color-danger)' }}>{t(error.titleKey)}</p>
@@ -164,7 +211,12 @@ export function AlertFlow({
           )}
         </div>
       )}
-      <button type="button" className="button button-primary" disabled={!category || submitting} onClick={handleSubmit}>
+      <button
+        type="button"
+        className="button button-primary"
+        disabled={!category || submitting || locationState.status === 'requesting'}
+        onClick={handleSubmit}
+      >
         {t('submit')}
       </button>
       <button type="button" className="button button-link" onClick={onCancel}>

@@ -32,6 +32,11 @@ export class AlertsController {
     return this.alertsService.archive(ownerId, id);
   }
 
+  @Post(':id/unarchive')
+  unarchive(@CurrentUserId() ownerId: string, @Param('id') id: string) {
+    return this.alertsService.unarchive(ownerId, id);
+  }
+
   @Post(':id/report-abuse')
   reportAbuse(
     @CurrentUserId() ownerId: string,

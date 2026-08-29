@@ -24,6 +24,12 @@ class AlertsController extends AutoDisposeAsyncNotifier<List<AlertEvent>> {
     ref.invalidateSelf();
     await future;
   }
+
+  Future<void> unarchive(String alertId) async {
+    await ref.read(apiClientProvider).raw.post<void>('/owner/alerts/$alertId/unarchive');
+    ref.invalidateSelf();
+    await future;
+  }
 }
 
 final alertsControllerProvider =
