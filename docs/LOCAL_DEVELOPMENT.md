@@ -116,7 +116,10 @@ more settings need to point at your LAN IP too:
    it cannot tell you which one it was, only that the fetch never
    completed. If you've set `NEXT_PUBLIC_API_BASE_URL` correctly and the
    API terminal shows nothing when you scan, check this setting before
-   anything else.
+   anything else. `services/api/.env` is loaded automatically (via
+   `dotenv`, in `main.ts` and `database/data-source.ts`) — you only need
+   to restart the API process after editing it, not export the
+   variables into your shell yourself.
 
 ### Error states, and reading them without a devtools console
 

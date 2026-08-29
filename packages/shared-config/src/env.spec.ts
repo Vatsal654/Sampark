@@ -40,3 +40,38 @@ describe('loadEnv', () => {
     expect(config).not.toHaveProperty('SCANNER_BASE_URL');
   });
 });
+
+describe('CORS_ALLOWED_ORIGINS parsing — whitespace/normalization must never cause a configured origin to silently fail to match', () => {
+  it('splits a comma-separated list into exact origin strings', () => {
+    const config = loadEnv(baseEnvSchema, {
+      ...validEnv,
+      CORS_ALLOWED_ORIGINS: 'http://localhost:3000,http://localhost:3002,http://192.168.1.8:3000',
+    });
+    expect(config.CORS_ALLOWED_ORIGINS).toEqual([
+      'http://localhost:3000',
+      'http://localhost:3002',
+      'http://192.168.1.8:3000',
+    ]);
+  });
+
+  it('trims whitespace around each origin (e.g. a value written as "a, b, c" in a .env file)', () => {
+    const config = loadEnv(baseEnvSchema, {
+      ...validEnv,
+      CORS_ALLOWED_ORIGINS: ' http://localhost:3000 , http://192.168.1.8:3000 ',
+    });
+    expect(config.CORS_ALLOWED_ORIGINS).toEqual(['http://localhost:3000', 'http://192.168.1.8:3000']);
+  });
+
+  it('drops empty entries from a trailing comma or blank segment, rather than producing an empty-string origin that could never match anything', () => {
+    const config = loadEnv(baseEnvSchema, {
+      ...validEnv,
+      CORS_ALLOWED_ORIGINS: 'http://localhost:3000,,http://192.168.1.8:3000,',
+    });
+    expect(config.CORS_ALLOWED_ORIGINS).toEqual(['http://localhost:3000', 'http://192.168.1.8:3000']);
+  });
+
+  it('preserves a single LAN-only origin (no trailing/leading defaults silently reappearing)', () => {
+    const config = loadEnv(baseEnvSchema, { ...validEnv, CORS_ALLOWED_ORIGINS: 'http://192.168.1.8:3000' });
+    expect(config.CORS_ALLOWED_ORIGINS).toEqual(['http://192.168.1.8:3000']);
+  });
+});

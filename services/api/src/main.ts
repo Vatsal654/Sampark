@@ -4,8 +4,23 @@
  * Security: Helmet + a strict CORS allowlist are applied before any route
  * registers; Swagger UI is only mounted when SWAGGER_ENABLED=true (never
  * in production by default). See docs/SECURITY.md "Transport & headers".
- * Related: app.module.ts, docs/API.md.
+ * Responsibilities: Loads services/api/.env into process.env before
+ * anything else runs — nothing else in this codebase does this (no
+ * @nestjs/config ConfigModule, no other dotenv import anywhere), so
+ * without this line `.env` is silently never read when the process is
+ * started directly (`npm run start` / `node dist/main.js` /
+ * `nest start --watch`), and every value in loadEnv(baseEnvSchema)
+ * below quietly falls back to its schema default instead — including
+ * CORS_ALLOWED_ORIGINS, which is how a correctly-edited .env adding a
+ * LAN origin can have zero effect: the app never saw it. dotenv never
+ * overwrites a variable already present in process.env (e.g. one a real
+ * deployment's platform injected directly), and is a silent no-op when
+ * no .env file exists (a production container's normal case), so this
+ * is safe everywhere.
+ * Related: app.module.ts, docs/API.md, database/data-source.ts (the
+ * same gap, fixed the same way, for the migration CLI).
  */
+import 'dotenv/config';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';

@@ -8,8 +8,15 @@
  * product spec's "use migrations, never synchronize" requirement.
  * Security: No credentials are hard-coded; DATABASE_URL must be supplied
  * by the environment (see .env.example).
- * Related: database/migrations/*, docs/OPERATIONS_RUNBOOK.md.
+ * Responsibilities: Loads .env before reading process.env.DATABASE_URL
+ * below — see main.ts's header comment for why this is needed at all
+ * (nothing else in this codebase loads .env automatically). Without it,
+ * the migration CLI silently falls back to the hard-coded default
+ * connection string on the next line instead of a locally-edited .env,
+ * which can point migrations at the wrong database with no error.
+ * Related: database/migrations/*, docs/OPERATIONS_RUNBOOK.md, main.ts.
  */
+import 'dotenv/config';
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import { ALL_ENTITIES } from './entities';
