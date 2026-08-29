@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/providers/auth_controller.dart';
 import '../models/alert_event.dart';
 
-class AlertsController extends AsyncNotifier<List<AlertEvent>> {
+class AlertsController extends AutoDisposeAsyncNotifier<List<AlertEvent>> {
   @override
   Future<List<AlertEvent>> build() async {
     final response = await ref.read(apiClientProvider).raw.get<List<dynamic>>('/owner/alerts');
@@ -26,4 +26,5 @@ class AlertsController extends AsyncNotifier<List<AlertEvent>> {
   }
 }
 
-final alertsControllerProvider = AsyncNotifierProvider<AlertsController, List<AlertEvent>>(AlertsController.new);
+final alertsControllerProvider =
+    AsyncNotifierProvider.autoDispose<AlertsController, List<AlertEvent>>(AlertsController.new);

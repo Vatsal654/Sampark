@@ -23,25 +23,33 @@ import '../../features/vehicles/screens/edit_vehicle_screen.dart';
 import '../../features/vehicles/screens/vehicle_details_screen.dart';
 import '../../shared/widgets/home_shell.dart';
 
+/// The redirect decision itself, pulled out as a pure function (no BuildContext/GoRouterState)
+/// so it's unit-testable directly rather than only indirectly through a full GoRouter + widget
+/// pump. AuthStatus.unknown is the state between app start and AuthController._bootstrap()
+/// resolving (an async secure-storage read) — treating it as "no redirect needed", like
+/// signedOut wasn't, used to let initialLocation (/home) through with no session at all, mounting
+/// every owner-only provider before a token had even been read. Folding unknown into the same
+/// check as signedOut closes that: only a *confirmed* signedIn status may reach a non-onboarding
+/// route.
+String? resolveAuthRedirect(AuthStatus status, String matchedLocation) {
+  final isOnboardingRoute = matchedLocation.startsWith('/onboarding');
+  if (status != AuthStatus.signedIn && !isOnboardingRoute) return '/onboarding';
+  if (status == AuthStatus.signedIn && isOnboardingRoute) return '/home';
+  return null;
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authControllerProvider);
 
   return GoRouter(
     initialLocation: '/home',
     redirect: (context, state) {
-      final isOnboardingRoute = state.matchedLocation.startsWith('/onboarding');
-      // Temporary diagnostic (see the "Something went wrong on every tab" investigation): proves
-      // whether this evaluates with status still AuthStatus.unknown before AuthController's
-      // _bootstrap() resolves — if so, the `if (unknown) return null;` line below lets
-      // /home (and every owner-authenticated provider it mounts) through with no session at all.
+      final redirectTo = resolveAuthRedirect(authState.status, state.matchedLocation);
       developer.log(
-        'router redirect: status=${authState.status} matchedLocation=${state.matchedLocation} isOnboardingRoute=$isOnboardingRoute',
+        'router redirect: status=${authState.status} matchedLocation=${state.matchedLocation} -> ${redirectTo ?? '(none)'}',
         name: 'sampark.auth',
       );
-      if (authState.status == AuthStatus.unknown) return null;
-      if (authState.status == AuthStatus.signedOut && !isOnboardingRoute) return '/onboarding';
-      if (authState.status == AuthStatus.signedIn && isOnboardingRoute) return '/home';
-      return null;
+      return redirectTo;
     },
     routes: [
       GoRoute(path: '/onboarding', builder: (context, state) => const PhoneEntryScreen()),

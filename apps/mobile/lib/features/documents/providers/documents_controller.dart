@@ -13,7 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/providers/auth_controller.dart';
 import '../models/vault_document.dart';
 
-class DocumentsController extends AsyncNotifier<List<VaultDocument>> {
+class DocumentsController extends AutoDisposeAsyncNotifier<List<VaultDocument>> {
   @override
   Future<List<VaultDocument>> build() async {
     final response = await ref.read(apiClientProvider).raw.get<List<dynamic>>('/owner/documents');
@@ -42,4 +42,5 @@ class DocumentsController extends AsyncNotifier<List<VaultDocument>> {
   }
 }
 
-final documentsControllerProvider = AsyncNotifierProvider<DocumentsController, List<VaultDocument>>(DocumentsController.new);
+final documentsControllerProvider =
+    AsyncNotifierProvider.autoDispose<DocumentsController, List<VaultDocument>>(DocumentsController.new);

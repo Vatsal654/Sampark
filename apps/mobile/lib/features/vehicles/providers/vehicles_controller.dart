@@ -8,7 +8,7 @@ import '../../../core/network/api_client.dart';
 import '../../auth/providers/auth_controller.dart';
 import '../models/vehicle.dart';
 
-class VehiclesController extends AsyncNotifier<List<Vehicle>> {
+class VehiclesController extends AutoDisposeAsyncNotifier<List<Vehicle>> {
   ApiClient get _api => ref.read(apiClientProvider);
 
   @override
@@ -93,4 +93,5 @@ class VehiclesController extends AsyncNotifier<List<Vehicle>> {
   }
 }
 
-final vehiclesControllerProvider = AsyncNotifierProvider<VehiclesController, List<Vehicle>>(VehiclesController.new);
+final vehiclesControllerProvider =
+    AsyncNotifierProvider.autoDispose<VehiclesController, List<Vehicle>>(VehiclesController.new);

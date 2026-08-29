@@ -42,7 +42,7 @@ class EmergencyProfileData {
       };
 }
 
-class EmergencyController extends AsyncNotifier<EmergencyProfileData> {
+class EmergencyController extends AutoDisposeAsyncNotifier<EmergencyProfileData> {
   @override
   Future<EmergencyProfileData> build() async {
     final response = await ref.read(apiClientProvider).raw.get<Map<String, dynamic>>('/owner/emergency-profile');
@@ -56,4 +56,5 @@ class EmergencyController extends AsyncNotifier<EmergencyProfileData> {
   }
 }
 
-final emergencyControllerProvider = AsyncNotifierProvider<EmergencyController, EmergencyProfileData>(EmergencyController.new);
+final emergencyControllerProvider =
+    AsyncNotifierProvider.autoDispose<EmergencyController, EmergencyProfileData>(EmergencyController.new);

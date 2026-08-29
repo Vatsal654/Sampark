@@ -40,7 +40,7 @@ class NotificationPreferencesData {
       );
 }
 
-class NotificationPreferencesController extends AsyncNotifier<NotificationPreferencesData> {
+class NotificationPreferencesController extends AutoDisposeAsyncNotifier<NotificationPreferencesData> {
   @override
   Future<NotificationPreferencesData> build() async {
     final response = await ref.read(apiClientProvider).raw.get<Map<String, dynamic>>('/owner/notification-preferences');
@@ -54,6 +54,6 @@ class NotificationPreferencesController extends AsyncNotifier<NotificationPrefer
 }
 
 final notificationPreferencesControllerProvider =
-    AsyncNotifierProvider<NotificationPreferencesController, NotificationPreferencesData>(
+    AsyncNotifierProvider.autoDispose<NotificationPreferencesController, NotificationPreferencesData>(
   NotificationPreferencesController.new,
 );
