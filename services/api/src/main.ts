@@ -31,6 +31,21 @@ import { baseEnvSchema, loadEnv } from '@sampark/shared-config';
 
 async function bootstrap(): Promise<void> {
   const config = loadEnv(baseEnvSchema);
+
+  // Development-only: prints exactly what this running process resolved
+  // CORS_ALLOWED_ORIGINS to, straight from the parsed config object
+  // app.enableCors() below is about to receive — origins are not secrets.
+  // If a request from an origin you expect to see in this list still
+  // doesn't get an Access-Control-Allow-Origin header, this line tells
+  // you definitively whether the *process* has the origin (a code/config
+  // problem) or not (almost always a stale build/process, or .env not
+  // actually being the file this process read — check `pwd` and
+  // `ls -la dist/main.js` timestamps against your last edit/build).
+  if (config.NODE_ENV !== 'production') {
+    // eslint-disable-next-line no-console -- intentional dev-only startup diagnostic
+    console.log(`[Sampark API] CORS_ALLOWED_ORIGINS resolved to: ${JSON.stringify(config.CORS_ALLOWED_ORIGINS)}`);
+  }
+
   const app = await NestFactory.create(AppModule, { cors: false });
 
   app.use(
