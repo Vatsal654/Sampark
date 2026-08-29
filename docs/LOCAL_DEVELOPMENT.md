@@ -142,7 +142,48 @@ observable by just looking at the phone's screen, without needing
 Safari's Web Inspector (Settings → Safari → Advanced → Web Inspector,
 then a cabled Mac's Develop menu) at all — though that remains available
 too, and `lib/api-client.ts` also logs the same information plus a
-console warning naming which of the two settings above to check.
+console warning naming which of the two settings above to check. The
+"Send Alert" flow (`components/AlertFlow.tsx`) has its own equivalent
+panel with the same idea, plus the HTTP method, and never shows "Alert
+sent securely" unless `submitAlert()` actually resolved — a rejected or
+unreachable request always renders the same classified error state
+instead (see `e2e/alert-submission.spec.ts`).
+
+### "The alert seemed to send, but nothing showed up anywhere" — reading this correctly
+
+A successful `POST /public/tags/:id/alerts` produces **zero terminal
+output on the API**, for the same reason a successful tag-lookup `GET`
+does (see above): there is no access-log middleware in this codebase at
+all, only a logged line for a *thrown* exception. So an empty API
+terminal after tapping "Send Alert" is not, by itself, evidence the
+request never arrived — check the scanner portal's own on-page
+diagnostics panel first (previous section); it distinguishes a real
+`network_error`/CORS rejection (fetch never got a response) from a
+successful `201`.
+
+If the alert genuinely was created (confirm via `GET
+/v1/owner/alerts` once logged in, or `SELECT * FROM alert_events ORDER
+BY "createdAt" DESC` in dev), two more things commonly look broken but
+aren't:
+
+- **No push/SMS/WhatsApp notification arrived**: every alert queues one
+  `AlertDeliveryEntity` row per channel with `status: 'queued'` — moving
+  them past "queued" is the **worker** process's job
+  (`services/worker`), not the API's. If `npm run dev:worker` isn't
+  running, deliveries sit queued forever; this is expected, not a bug.
+  With mock providers (the default), check
+  `GET http://localhost:3001/v1/dev/simulator` once the worker has run.
+- **The alert doesn't show up in the Flutter owner app**: `GET
+  /v1/owner/alerts` reads directly from the database and has no
+  dependency on the worker or on notification delivery at all — if it's
+  missing there too, the far more likely cause is the same class of bug
+  as "Testing on a physical device" above, but on the mobile side: the
+  owner app defaults to `http://10.0.2.2:3001` (Android emulator only)
+  and needs `--dart-define=API_BASE_URL=http://192.168.1.8:3001` (your
+  LAN IP) to reach the same API instance a physical-device scanner
+  portal is using. An owner app pointed at a different API instance (or
+  none reachable at all) will never see an alert created against this
+  one, no matter how many times it's retried.
 
 ## Test commands
 
@@ -161,6 +202,12 @@ npm run --workspace apps/scanner-portal test:e2e:cors # Playwright, against a re
                                                        # page.route() interception can't test this since
                                                        # it never touches a real response, so CORS is
                                                        # never actually enforced
+npm run --workspace apps/scanner-portal test:e2e:alert # Playwright, against a real HTTP response —
+                                                        # same idea as test:e2e:cors but for the
+                                                        # alert-submission POST specifically: reproduces
+                                                        # "the tag lookup GET works but Send Alert
+                                                        # silently doesn't reach the backend" and asserts
+                                                        # the scanner never shows "Alert sent" for it
 npm run --workspace apps/admin test:e2e              # Playwright
 cd apps/mobile && flutter test
 ```

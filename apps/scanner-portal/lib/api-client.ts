@@ -191,12 +191,19 @@ export function getTag(opaqueId: string, signature: string) {
   }>(buildPublicTagPath(opaqueId, signature));
 }
 
+/** Builds the exact path (relative to API_BASE_URL) alert submission calls — mirrors
+ * buildPublicTagPath so a diagnostics display can show precisely the URL a request actually
+ * used, without duplicating the query-encoding logic. */
+export function buildAlertPath(opaqueId: string, signature: string): string {
+  return `/public/tags/${opaqueId}/alerts?sig=${encodeURIComponent(signature)}`;
+}
+
 export function submitAlert(
   opaqueId: string,
   signature: string,
   body: { category: string; note?: string; location?: { latitude: number; longitude: number } },
 ) {
-  return request<{ alertId: string; acknowledged: true }>(`/public/tags/${opaqueId}/alerts?sig=${encodeURIComponent(signature)}`, {
+  return request<{ alertId: string; acknowledged: true }>(buildAlertPath(opaqueId, signature), {
     method: 'POST',
     body: JSON.stringify(body),
   });

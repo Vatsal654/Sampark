@@ -11,7 +11,8 @@
     "test": "jest",
     "test:e2e": "playwright test",
     "test:e2e:dev": "playwright test --config=playwright.dev.config.ts",
-    "test:e2e:cors": "playwright test --config=playwright.cors.config.ts"
+    "test:e2e:cors": "playwright test --config=playwright.cors.config.ts",
+    "test:e2e:alert": "playwright test --config=playwright.alert.config.ts"
   },
   "dependencies": {
     "next": "^14.2.5",

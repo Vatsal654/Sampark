@@ -40,6 +40,7 @@ export const DICTIONARY = {
   },
   errorGeneric: { en: 'Something went wrong. Please try again.', ne: 'केही समस्या भयो। कृपया फेरि प्रयास गर्नुहोस्।' },
   errorRateLimited: { en: 'Too many requests. Please wait a moment and try again.', ne: 'धेरै अनुरोधहरू। कृपया केही समय पर्खनुहोस्।' },
+  rateLimitedTitle: { en: 'Too many requests', ne: 'धेरै अनुरोधहरू' },
   tagNotFoundTitle: { en: 'Tag not found', ne: 'ट्याग फेला परेन' },
   tagNotFoundBody: {
     en: 'This link is invalid or has expired. If you scanned a physical tag, it may be damaged.',

@@ -6,12 +6,16 @@
  * (excluded here) against a real `next dev` server instead — some of
  * its assertions (e.g. CSP containing 'unsafe-eval') are true only in
  * dev mode and would fail against this config's production build.
+ * playwright.cors.config.ts and playwright.alert.config.ts (also
+ * excluded here) each start their own dedicated mock CORS server
+ * alongside `next dev`, which this config's single production
+ * webServer can't provide.
  */
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: ['dev-mode.spec.ts', 'cors.spec.ts'],
+  testIgnore: ['dev-mode.spec.ts', 'cors.spec.ts', 'alert-submission.spec.ts'],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
