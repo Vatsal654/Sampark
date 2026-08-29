@@ -90,7 +90,7 @@ class _AlertCardState extends ConsumerState<_AlertCard> {
   }
 
   Future<void> _openInMaps(ScannerLocation location) async {
-    final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}');
+    final uri = mapsUriFor(location);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {

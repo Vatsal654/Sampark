@@ -24,6 +24,12 @@ class ScannerLocation {
   final double longitude;
 }
 
+/// Builds the "Open in Maps" target for a shared location — pure and independent of
+/// url_launcher so it's directly unit-testable without mocking a platform channel; the screen
+/// only wires this to launchUrl(), never constructs the URL itself.
+Uri mapsUriFor(ScannerLocation location) =>
+    Uri.parse('https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}');
+
 class AlertEvent {
   const AlertEvent({
     required this.id,

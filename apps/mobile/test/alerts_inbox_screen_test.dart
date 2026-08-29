@@ -78,13 +78,13 @@ class _FakeAlertsController extends AlertsController {
   }
 }
 
-AlertEvent _seedAlert() => AlertEvent(
+AlertEvent _seedAlert({ScannerLocation? scannerLocationExact}) => AlertEvent(
       id: 'alert-1',
       category: 'blocking_access',
       severity: 'normal',
       note: null,
-      scannerLocationLabel: null,
-      scannerLocationExact: null,
+      scannerLocationLabel: scannerLocationExact != null ? 'Near scan location' : null,
+      scannerLocationExact: scannerLocationExact,
       createdAt: DateTime(2026, 1, 1),
       acknowledgedAt: null,
       archivedAt: null,
@@ -92,6 +92,21 @@ AlertEvent _seedAlert() => AlertEvent(
     );
 
 void main() {
+  testWidgets('renders an alert from the inbox with its category, acknowledge, and archive actions', (tester) async {
+    final controller = _FakeAlertsController([_seedAlert()]);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [alertsControllerProvider.overrideWith(() => controller)],
+        child: const MaterialApp(home: AlertsInboxScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('blocking access'), findsOneWidget); // category with underscores replaced by spaces
+    expect(find.widgetWithText(TextButton, translate(AppLocale.en, 'acknowledge')), findsOneWidget);
+    expect(find.widgetWithText(TextButton, translate(AppLocale.en, 'archive')), findsOneWidget);
+  });
+
   testWidgets('acknowledge success: shows a persisted "Acknowledged" state only after the mutation resolves', (tester) async {
     final controller = _FakeAlertsController([_seedAlert()]);
     await tester.pumpWidget(
@@ -174,6 +189,10 @@ void main() {
     final controller = _FakeAlertsController([_seedAlert()]);
     final container = ProviderContainer(overrides: [alertsControllerProvider.overrideWith(() => controller)]);
     addTearDown(container.dispose);
+    // alertsControllerProvider is `.autoDispose` — without a live listener, Riverpod can tear the
+    // notifier down between the awaits below (no widget is mounted here to hold it alive
+    // implicitly), which would make this test flaky rather than a reliable persistence check.
+    container.listen(alertsControllerProvider, (previous, next) {}, fireImmediately: true);
 
     await container.read(alertsControllerProvider.future);
     await container.read(alertsControllerProvider.notifier).acknowledge('alert-1');
@@ -187,5 +206,35 @@ void main() {
     container.invalidate(alertsControllerProvider);
     final refetched = await container.read(alertsControllerProvider.future);
     expect(refetched.single.acknowledgedAt, isNotNull);
+  });
+
+  testWidgets('shows the shared-location label and an Open in Maps action when the scanner opted in', (tester) async {
+    final controller = _FakeAlertsController([
+      _seedAlert(scannerLocationExact: const ScannerLocation(latitude: 27.7, longitude: 85.3)),
+    ]);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [alertsControllerProvider.overrideWith(() => controller)],
+        child: const MaterialApp(home: AlertsInboxScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(translate(AppLocale.en, 'locationSharedLabel')), findsOneWidget);
+    expect(find.widgetWithText(TextButton, translate(AppLocale.en, 'openInMaps')), findsOneWidget);
+  });
+
+  testWidgets('shows no location label or map action when the scanner did not share location', (tester) async {
+    final controller = _FakeAlertsController([_seedAlert()]);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [alertsControllerProvider.overrideWith(() => controller)],
+        child: const MaterialApp(home: AlertsInboxScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(translate(AppLocale.en, 'locationSharedLabel')), findsNothing);
+    expect(find.widgetWithText(TextButton, translate(AppLocale.en, 'openInMaps')), findsNothing);
   });
 }
