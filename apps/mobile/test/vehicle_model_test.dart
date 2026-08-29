@@ -8,6 +8,7 @@ void main() {
         'id': 'vehicle-1',
         'displayLabel': 'Blue Scooter',
         'category': 'scooter',
+        'plateNumber': 'BA1PA1234',
         'plateNumberMasked': 'BA•••34',
         'make': 'Honda',
         'model': 'Dio',
@@ -23,6 +24,7 @@ void main() {
 
       expect(vehicle.id, 'vehicle-1');
       expect(vehicle.displayLabel, 'Blue Scooter');
+      expect(vehicle.plateNumber, 'BA1PA1234');
       expect(vehicle.plateNumberMasked, 'BA•••34');
       expect(vehicle.make, 'Honda');
       expect(vehicle.model, 'Dio');
@@ -41,6 +43,7 @@ void main() {
         'id': 'vehicle-2',
         'displayLabel': 'Bare Bones',
         'category': 'car',
+        'plateNumber': 'BA1XX0001',
         'plateNumberMasked': 'BA•••01',
         'make': null,
         'model': null,

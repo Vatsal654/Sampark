@@ -11,6 +11,7 @@ const _vehicle = Vehicle(
   id: 'vehicle-1',
   displayLabel: 'Blue Scooter',
   category: 'scooter',
+  plateNumber: 'BA1PA1234',
   plateNumberMasked: 'BA•••34',
   make: 'Honda',
   model: 'Dio',
@@ -65,7 +66,7 @@ class _RecordingVehiclesController extends VehiclesController {
 }
 
 void main() {
-  testWidgets('prefills every editable field from the existing vehicle, except plate number', (tester) async {
+  testWidgets('prefills every editable field from the existing vehicle, including the full plate number', (tester) async {
     final controller = _RecordingVehiclesController();
     await tester.pumpWidget(
       ProviderScope(
@@ -76,6 +77,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Blue Scooter'), findsOneWidget);
+    // The owner-authenticated GET now returns the full plate (VehiclesService.toView), so the
+    // edit form can prefill it directly instead of a "leave blank to keep current" workaround.
+    expect(find.text('BA1PA1234'), findsOneWidget);
     expect(find.text('Honda'), findsOneWidget);
     expect(find.text('Dio'), findsOneWidget);
     expect(find.text('STD'), findsOneWidget);
@@ -83,11 +87,9 @@ void main() {
     expect(find.text('Blue'), findsOneWidget);
     expect(find.text('MH1JF5115K1234567'), findsOneWidget);
     expect(find.text('JF51E1234567'), findsOneWidget);
-    // The full plate is never returned by the backend, so there is nothing to prefill it with.
-    expect(find.text('BA•••34'), findsNothing);
   });
 
-  testWidgets('saving without touching the plate field omits plateNumber, and pops back on success', (tester) async {
+  testWidgets('saving without changing anything sends the current (unchanged) values, and pops back on success', (tester) async {
     final controller = _RecordingVehiclesController();
     // A real GoRouter with somewhere to pop back to: EditVehicleScreen calls context.pop() on a
     // successful save (see edit_vehicle_screen.dart), which needs an actual GoRouter ancestor and
@@ -115,8 +117,30 @@ void main() {
     expect(controller.lastUpdateCall!['vehicleId'], 'vehicle-1');
     expect(controller.lastUpdateCall!['displayLabel'], 'Blue Scooter');
     expect(controller.lastUpdateCall!['make'], 'Honda');
-    expect(controller.lastUpdateCall!['plateNumber'], isNull);
+    expect(controller.lastUpdateCall!['plateNumber'], 'BA1PA1234');
     // Confirms the screen actually popped back to the previous route on success.
     expect(find.text('vehicle list'), findsOneWidget);
+  });
+
+  testWidgets('editing one field (color) leaves every other prefilled field unchanged in the update call', (tester) async {
+    final controller = _RecordingVehiclesController();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [vehiclesControllerProvider.overrideWith(() => controller)],
+        child: const MaterialApp(home: EditVehicleScreen(vehicleId: 'vehicle-1')),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.widgetWithText(TextField, translate(AppLocale.en, 'vehicleColor')), 'Red');
+    await tester.tap(find.widgetWithText(FilledButton, translate(AppLocale.en, 'saveChanges')));
+    await tester.pump();
+
+    expect(controller.lastUpdateCall!['color'], 'Red');
+    expect(controller.lastUpdateCall!['make'], 'Honda');
+    expect(controller.lastUpdateCall!['model'], 'Dio');
+    expect(controller.lastUpdateCall!['vinNumber'], 'MH1JF5115K1234567');
+    expect(controller.lastUpdateCall!['engineNumber'], 'JF51E1234567');
+    expect(controller.lastUpdateCall!['plateNumber'], 'BA1PA1234');
   });
 }

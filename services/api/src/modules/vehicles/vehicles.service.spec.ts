@@ -106,9 +106,10 @@ describe('VehiclesService', () => {
     expect(view.engineNumber).toBe('JF51E1234567');
     expect(view.tagId).toBeNull();
     expect(view.tagStatus).toBeNull();
-    // The full plate is never returned — only a masked form derived from it.
+    // The owner is shown their own full plate (an authenticated, ownership-checked response —
+    // see the "owner can see full plate" test below) alongside the masked form other UI can use.
+    expect(view.plateNumber).toBe('BA1PA1234');
     expect(view.plateNumberMasked).toBe('BA•••34');
-    expect(Object.keys(view)).not.toContain('plateNumber');
   });
 
   it('create() leaves unset optional fields null rather than inventing a default', async () => {
@@ -177,5 +178,23 @@ describe('VehiclesService', () => {
     await service.remove('owner-1', created.id);
 
     await expect(service.getOne('owner-1', created.id)).rejects.toThrow('Vehicle not found');
+  });
+
+  it('owner can see the full plate on both list() and getOne() for their own vehicle', async () => {
+    const { service } = makeService();
+    const created = await service.create('owner-1', FULL_INPUT);
+
+    const [listed] = await service.list('owner-1');
+    const fetched = await service.getOne('owner-1', created.id);
+
+    expect(listed?.plateNumber).toBe('BA1PA1234');
+    expect(fetched.plateNumber).toBe('BA1PA1234');
+  });
+
+  it('getOne() rejects a vehicle owned by someone else (IDOR guard — no full plate leak cross-owner)', async () => {
+    const { service } = makeService();
+    const created = await service.create('owner-1', FULL_INPUT);
+
+    await expect(service.getOne('owner-2', created.id)).rejects.toThrow('Not your vehicle');
   });
 });

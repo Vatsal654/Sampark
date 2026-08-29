@@ -76,6 +76,7 @@ async function main(): Promise<void> {
     tag.vehicleId = null;
     tag.ownerId = null;
     tag.activatedAt = null;
+    tag.previousTagId = null;
     await tags.save(tag);
   } else {
     tag = await tags.save(tags.create({ opaqueId: DEV_TAG_OPAQUE_ID, status: 'issued', activationPinHash: pinHash }));

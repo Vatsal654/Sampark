@@ -46,9 +46,16 @@ client (browser dev tools, scripted requests).
   authenticated owner session **and** a physical fulfilment/activation PIN
   shipped separately from the QR sticker (`tag_activation_challenges`).
   Reassignment requires re-verification and is audit logged. Possession of
-  the URL alone never proves ownership.
+  the URL alone never proves ownership. `POST /owner/tags/activate` also
+  rate-limits PIN attempts per opaque tag ID (5 per 15 minutes, independent
+  of which authenticated account is attempting) — an authenticated session
+  is not proof of ownership either, only the PIN is, so a legitimate-looking
+  owner account must not be able to brute-force an unlimited number of PIN
+  guesses against a tag it doesn't actually hold.
 - **Tests**: `tag-activation.e2e-spec.ts` — activation without a valid PIN
-  is rejected; reassignment without fresh auth is rejected.
+  is rejected; reassignment without fresh auth is rejected;
+  `tags.service.spec.ts` — the per-tag attempt budget rejects a 6th attempt
+  before even checking the PIN.
 
 ### 3.3 Stalking / repeated alerts against one owner
 - **Threat**: a scanner (or bot) spams alerts/calls against a single tag to

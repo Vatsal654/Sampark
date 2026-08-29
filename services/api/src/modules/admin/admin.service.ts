@@ -98,6 +98,11 @@ export class AdminService {
     const tag = await this.tags.findOne({ where: { id: tagId } });
     if (!tag) throw new NotFoundException('Tag not found');
     tag.status = 'revoked';
+    // Same reasoning as TagsService.requestReplacement: a revoked tag is no longer "this
+    // vehicle's" tag, and leaving vehicleId set would let it collide with whatever tag gets
+    // activated onto the vehicle next (VehiclesService looks a vehicle's tag up by vehicleId
+    // alone, so two rows pointing at the same vehicle is an undefined "which one" situation).
+    tag.vehicleId = null;
     await this.tags.save(tag);
     await this.audit.record({ actorType: 'admin', actorId: adminId, action: 'tag.suspended', targetType: 'tag', targetId: tag.id, reason });
     return { id: tag.id, status: tag.status };

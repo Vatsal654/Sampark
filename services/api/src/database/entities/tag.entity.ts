@@ -62,6 +62,11 @@ export class TagEntity {
 
   @Column({ type: 'timestamptz', nullable: true })
   activatedAt!: Date | null;
+
+  /** Set only when this tag was activated with `replacesTagId` pointing at a tag the same owner
+   * had reported lost — lineage/audit metadata only, never a substitute for this tag's own PIN. */
+  @Column({ type: 'uuid', nullable: true })
+  previousTagId!: string | null;
 }
 
 @Entity('tag_shipments')

@@ -5,11 +5,14 @@ import 'package:sampark/core/i18n/translations.dart';
 import 'package:sampark/features/vehicles/screens/add_vehicle_screen.dart';
 
 void main() {
-  testWidgets('renders the expanded vehicle detail fields', (tester) async {
+  testWidgets('renders the expanded vehicle detail fields, organized into sections', (tester) async {
     await tester.pumpWidget(
       const ProviderScope(child: MaterialApp(home: AddVehicleScreen())),
     );
 
+    expect(find.text(translate(AppLocale.en, 'vehicleInformationSection')), findsOneWidget);
+    expect(find.text(translate(AppLocale.en, 'identificationSection')), findsOneWidget);
+    expect(find.text(translate(AppLocale.en, 'category')), findsOneWidget);
     expect(find.text(translate(AppLocale.en, 'displayLabel')), findsOneWidget);
     expect(find.text(translate(AppLocale.en, 'plateNumber')), findsOneWidget);
     expect(find.text(translate(AppLocale.en, 'make')), findsOneWidget);
@@ -20,6 +23,24 @@ void main() {
     expect(find.text(translate(AppLocale.en, 'vehicleColor')), findsOneWidget);
     expect(find.text(translate(AppLocale.en, 'vinNumber')), findsOneWidget);
     expect(find.text(translate(AppLocale.en, 'engineNumber')), findsOneWidget);
+    // Make/Model/Variant helper text distinguishing the three, per the product spec.
+    expect(find.text(translate(AppLocale.en, 'makeHelper')), findsOneWidget);
+    expect(find.text(translate(AppLocale.en, 'modelHelper')), findsOneWidget);
+    expect(find.text(translate(AppLocale.en, 'variantHelper')), findsOneWidget);
+  });
+
+  testWidgets('the vehicle type dropdown defaults to a human-friendly label, never the raw lowercase enum value', (tester) async {
+    await tester.pumpWidget(
+      const ProviderScope(child: MaterialApp(home: AddVehicleScreen())),
+    );
+
+    // The dropdown defaults to 'car' — its closed-state display should read "Car", not "car".
+    expect(find.text('Car'), findsOneWidget);
+    expect(find.text('car'), findsNothing);
+
+    final dropdown = tester.widget<DropdownButtonFormField<String>>(find.byType(DropdownButtonFormField<String>));
+    final itemTexts = dropdown.items!.map((item) => (item.child as Text).data).toList();
+    expect(itemTexts, ['Car', 'Bike', 'Scooter', 'Taxi', 'Commercial', 'Other']);
   });
 
   testWidgets('rejects a too-short plate number before ever calling the backend', (tester) async {

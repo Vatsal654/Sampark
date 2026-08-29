@@ -21,7 +21,7 @@ export class TagsController {
 
   @Post('activate')
   activate(@CurrentUserId() ownerId: string, @Body(new ZodValidationPipe(activateTagSchema)) body: ActivateTag) {
-    return this.tagsService.activate(ownerId, body.opaqueId, body.activationPin, body.vehicleId);
+    return this.tagsService.activate(ownerId, body.opaqueId, body.activationPin, body.vehicleId, body.replacesTagId);
   }
 
   @Post(':id/pause')

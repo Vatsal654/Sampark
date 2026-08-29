@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { TagEntity, VehicleEntity, TagActivationChallengeEntity } from '../../database/entities';
 import { AuditModule } from '../../common/audit/audit.module';
+import { RateLimitService } from '../../common/rate-limit/rate-limit.service';
 import { TagsService } from './tags.service';
 import { TagsController } from './tags.controller';
 
@@ -13,7 +14,7 @@ import { TagsController } from './tags.controller';
     AuditModule,
   ],
   controllers: [TagsController],
-  providers: [TagsService],
+  providers: [TagsService, RateLimitService],
   exports: [TagsService],
 })
 export class TagsModule {}

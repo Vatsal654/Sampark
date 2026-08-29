@@ -1,5 +1,5 @@
-import { createVehicleSchema } from './vehicle';
-import { submitAlertRequestSchema } from './public';
+import { activateTagSchema, createVehicleSchema, vehicleViewSchema } from './vehicle';
+import { publicTagViewSchema, submitAlertRequestSchema } from './public';
 import { requestOtpSchema } from './auth';
 import { notificationPreferencesSchema } from './notification-preferences';
 
@@ -18,6 +18,71 @@ describe('createVehicleSchema', () => {
       displayLabel: 'BA 2 PA 1234',
       category: 'car',
       plateNumber: 'BA2PA1234',
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('vehicleViewSchema — owner-authenticated only', () => {
+  it('carries the full plate alongside the masked form (owner can see their own plate in full)', () => {
+    const result = vehicleViewSchema.safeParse({
+      id: '11111111-1111-1111-1111-111111111111',
+      displayLabel: 'Red Scooter',
+      category: 'scooter',
+      plateNumber: 'BA2PA1234',
+      plateNumberMasked: 'BA•••34',
+      make: null,
+      model: null,
+      variant: null,
+      manufacturingYear: null,
+      fuelType: null,
+      color: null,
+      vinNumber: null,
+      engineNumber: null,
+      tagId: null,
+      tagStatus: null,
+      createdAt: new Date().toISOString(),
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('publicTagViewSchema — scanner-facing, must never carry a plate', () => {
+  it('has no plateNumber or plateNumberMasked field at all, in either direction', () => {
+    // A structural guarantee, not just "we happen not to send it": if a future edit ever adds a
+    // plate field to the owner-only vehicleViewSchema and someone copies a field list across by
+    // habit, this test fails immediately rather than silently shipping a scanner-facing plate leak.
+    expect(Object.keys(publicTagViewSchema.shape)).not.toContain('plateNumber');
+    expect(Object.keys(publicTagViewSchema.shape)).not.toContain('plateNumberMasked');
+  });
+});
+
+describe('activateTagSchema', () => {
+  it('accepts an activation with no replacesTagId (the normal case)', () => {
+    const result = activateTagSchema.safeParse({
+      opaqueId: 'a'.repeat(32),
+      activationPin: '123456',
+      vehicleId: '11111111-1111-1111-1111-111111111111',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts an optional replacesTagId for the reported-lost -> replaced lineage', () => {
+    const result = activateTagSchema.safeParse({
+      opaqueId: 'a'.repeat(32),
+      activationPin: '123456',
+      vehicleId: '11111111-1111-1111-1111-111111111111',
+      replacesTagId: '22222222-2222-2222-2222-222222222222',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a replacesTagId that is not a UUID', () => {
+    const result = activateTagSchema.safeParse({
+      opaqueId: 'a'.repeat(32),
+      activationPin: '123456',
+      vehicleId: '11111111-1111-1111-1111-111111111111',
+      replacesTagId: 'not-a-uuid',
     });
     expect(result.success).toBe(false);
   });

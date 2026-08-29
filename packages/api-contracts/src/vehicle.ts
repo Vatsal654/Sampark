@@ -2,9 +2,11 @@
  * Purpose: Owner-facing vehicle and tag lifecycle contracts.
  * Responsibilities: Create/update vehicle schemas, tag activation
  * request, and owner-safe view models.
- * Security: `plateNumber` is accepted here (owner-authenticated context
- * only) but is never echoed back in a public/scanner-facing schema — see
- * public.ts's publicTagViewSchema, which has no plate field at all.
+ * Security: `plateNumber` is accepted on write AND returned in full on
+ * `vehicleViewSchema` (owner-authenticated context only, ownership
+ * enforced server-side in VehiclesService) — it is never echoed back in
+ * a public/scanner-facing schema — see public.ts's publicTagViewSchema,
+ * which has no plate field, masked or otherwise, at all.
  * Related: enums.ts, services/api vehicles + tags modules, apps/mobile.
  */
 import { z } from 'zod';
@@ -38,6 +40,10 @@ export const vehicleViewSchema = z.object({
   id: z.string().uuid(),
   displayLabel: z.string(),
   category: z.enum(VEHICLE_CATEGORIES),
+  /** Full plate — safe here because this schema is owner-authenticated only (never returned by
+   * any scanner-facing endpoint). Kept alongside plateNumberMasked for callers (e.g. a list view)
+   * that prefer the shorter masked form for display. */
+  plateNumber: z.string(),
   plateNumberMasked: z.string(),
   make: z.string().nullable(),
   model: z.string().nullable(),
@@ -57,6 +63,9 @@ export const activateTagSchema = z.object({
   opaqueId: z.string().regex(/^[0-9a-f]{32}$/),
   activationPin: z.string().min(6).max(12),
   vehicleId: z.string().uuid(),
+  /** Set when this activation is replacing a tag the owner already reported lost — see
+   * TagsService.activate()'s validation. Never a substitute for this tag's own PIN. */
+  replacesTagId: z.string().uuid().optional(),
 });
 export type ActivateTag = z.infer<typeof activateTagSchema>;
 

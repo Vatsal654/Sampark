@@ -1,11 +1,16 @@
 /**
  * Purpose: Owner vehicle CRUD, always scoped to the authenticated owner.
  * Responsibilities: Create/list/update/delete a vehicle; encrypts/hashes
- * the plate number on write and returns only a masked plate on read.
+ * the plate number on write and decrypts it back to plaintext on every
+ * owner-authenticated read (toView) — the owner is always shown their
+ * own full plate, never masked to themselves.
  * Security: Every method takes `ownerId` from the verified JWT (never
  * from the request body) and every query filters by it — this is the
  * concrete implementation of the "users cannot access another user's
- * vehicle" authorization test in docs' testing requirements.
+ * vehicle" authorization test in docs' testing requirements. The
+ * decrypted plate returned here must NEVER reach a scanner-facing
+ * response — see public-tag.service.ts, which has no vehicle-plate
+ * field of any kind, masked or full.
  * Related: packages/api-contracts/src/vehicle.ts, database/entities/vehicle.entity.ts.
  */
 import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
@@ -94,6 +99,7 @@ export class VehiclesService {
       id: vehicle.id,
       displayLabel: vehicle.displayLabel,
       category: vehicle.category,
+      plateNumber: plate,
       plateNumberMasked: plate.length > 4 ? `${plate.slice(0, 2)}•••${plate.slice(-2)}` : '••••',
       make: vehicle.make,
       model: vehicle.model,

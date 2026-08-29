@@ -1,9 +1,10 @@
 /// Purpose: Owner-facing vehicle view model, mirroring
 /// packages/api-contracts/src/vehicle.ts#vehicleViewSchema.
-/// Security: `plateNumberMasked` is the only plate representation the
-/// backend ever returns on read — the full plate is write-only (sent on
-/// create/update, never echoed back). See EditVehicleScreen for how that
-/// shapes the edit form.
+/// Security: The backend now returns the full `plateNumber` alongside
+/// `plateNumberMasked` — safe because this model is only ever populated
+/// from an authenticated, ownership-checked owner endpoint
+/// (GET/POST/PATCH /owner/vehicles*). Never send `plateNumber` anywhere
+/// scanner-facing; the public scanner API has no plate field at all.
 library;
 
 class Vehicle {
@@ -11,6 +12,7 @@ class Vehicle {
     required this.id,
     required this.displayLabel,
     required this.category,
+    required this.plateNumber,
     required this.plateNumberMasked,
     required this.make,
     required this.model,
@@ -28,6 +30,7 @@ class Vehicle {
         id: json['id'] as String,
         displayLabel: json['displayLabel'] as String,
         category: json['category'] as String,
+        plateNumber: json['plateNumber'] as String,
         plateNumberMasked: json['plateNumberMasked'] as String,
         make: json['make'] as String?,
         model: json['model'] as String?,
@@ -44,6 +47,7 @@ class Vehicle {
   final String id;
   final String displayLabel;
   final String category;
+  final String plateNumber;
   final String plateNumberMasked;
   final String? make;
   final String? model;

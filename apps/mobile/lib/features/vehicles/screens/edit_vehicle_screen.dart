@@ -1,12 +1,11 @@
 /// Purpose: Edit an existing vehicle's details.
 /// Responsibilities: Prefills every field the backend returns on read
-/// from the already-loaded vehiclesControllerProvider list. `plateNumber`
-/// is the one exception — the backend never returns the full plate (only
-/// plateNumberMasked), so there is nothing to prefill; it's a separate
-/// "leave blank to keep current" field instead, matching
-/// VehiclesController.updateVehicle's partial-update semantics exactly.
+/// from the already-loaded vehiclesControllerProvider list — including
+/// the full plate number, which the owner-authenticated GET/vehicle
+/// response now includes (see VehiclesService.toView). Same field order,
+/// spacing, and dropdown labels as AddVehicleScreen.
 /// Related: providers/vehicles_controller.dart, ../vehicle_validation.dart,
-/// screens/vehicle_details_screen.dart.
+/// ../vehicle_display.dart, screens/vehicle_details_screen.dart.
 library;
 
 import 'package:flutter/material.dart';
@@ -16,10 +15,11 @@ import 'package:go_router/go_router.dart';
 import '../../../core/i18n/locale_provider.dart';
 import '../models/vehicle.dart';
 import '../providers/vehicles_controller.dart';
+import '../vehicle_display.dart';
 import '../vehicle_validation.dart';
 
-const _categories = ['car', 'bike', 'scooter', 'taxi', 'commercial', 'other'];
-const _fuelTypes = ['petrol', 'diesel', 'electric', 'hybrid', 'cng', 'other'];
+const _fieldGap = SizedBox(height: 16);
+const _sectionGap = SizedBox(height: 28);
 
 class EditVehicleScreen extends ConsumerStatefulWidget {
   const EditVehicleScreen({required this.vehicleId, super.key});
@@ -48,6 +48,7 @@ class _EditVehicleScreenState extends ConsumerState<EditVehicleScreen> {
   void _hydrate(Vehicle vehicle) {
     if (_initialized) return;
     _labelController.text = vehicle.displayLabel;
+    _plateController.text = vehicle.plateNumber;
     _makeController.text = vehicle.make ?? '';
     _modelController.text = vehicle.model ?? '';
     _variantController.text = vehicle.variant ?? '';
@@ -78,7 +79,7 @@ class _EditVehicleScreenState extends ConsumerState<EditVehicleScreen> {
     final locale = ref.read(localeProvider);
     if (_labelController.text.trim().isEmpty) return;
     final plate = _plateController.text.trim();
-    if (plate.isNotEmpty && !isValidPlateNumber(plate)) {
+    if (!isValidPlateNumber(plate)) {
       setState(() => _error = translate(locale, 'invalidPlateNumber'));
       return;
     }
@@ -111,7 +112,7 @@ class _EditVehicleScreenState extends ConsumerState<EditVehicleScreen> {
             vehicleId: widget.vehicleId,
             displayLabel: _labelController.text.trim(),
             category: _category,
-            plateNumber: plate.isEmpty ? null : plate,
+            plateNumber: plate,
             make: _makeController.text.trim().isEmpty ? null : _makeController.text.trim(),
             model: _modelController.text.trim().isEmpty ? null : _modelController.text.trim(),
             variant: _variantController.text.trim().isEmpty ? null : _variantController.text.trim(),
@@ -152,74 +153,101 @@ class _EditVehicleScreenState extends ConsumerState<EditVehicleScreen> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              Text(translate(locale, 'vehicleInformationSection'), style: Theme.of(context).textTheme.titleMedium),
+              _fieldGap,
+              DropdownButtonFormField<String>(
+                value: _category,
+                decoration: InputDecoration(labelText: translate(locale, 'category'), border: const OutlineInputBorder()),
+                items: vehicleCategories
+                    .map((c) => DropdownMenuItem(value: c, child: Text(categoryDisplayLabel(locale, c))))
+                    .toList(),
+                onChanged: (value) => setState(() => _category = value ?? _category),
+              ),
+              _fieldGap,
               TextField(
                 controller: _labelController,
                 maxLength: 60,
                 decoration: InputDecoration(labelText: translate(locale, 'displayLabel'), border: const OutlineInputBorder()),
               ),
-              DropdownButtonFormField<String>(
-                value: _category,
-                decoration: InputDecoration(labelText: translate(locale, 'category'), border: const OutlineInputBorder()),
-                items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                onChanged: (value) => setState(() => _category = value ?? _category),
-              ),
-              const SizedBox(height: 8),
+              _fieldGap,
               TextField(
                 controller: _plateController,
-                decoration: InputDecoration(labelText: translate(locale, 'changePlateNumber'), border: const OutlineInputBorder()),
+                decoration: InputDecoration(labelText: translate(locale, 'plateNumber'), border: const OutlineInputBorder()),
               ),
-              const SizedBox(height: 8),
+              _fieldGap,
               TextField(
                 controller: _makeController,
-                decoration: InputDecoration(labelText: translate(locale, 'make'), border: const OutlineInputBorder()),
+                decoration: InputDecoration(
+                  labelText: translate(locale, 'make'),
+                  helperText: translate(locale, 'makeHelper'),
+                  helperMaxLines: 2,
+                  border: const OutlineInputBorder(),
+                ),
               ),
-              const SizedBox(height: 8),
+              _fieldGap,
               TextField(
                 controller: _modelController,
-                decoration: InputDecoration(labelText: translate(locale, 'model'), border: const OutlineInputBorder()),
+                decoration: InputDecoration(
+                  labelText: translate(locale, 'model'),
+                  helperText: translate(locale, 'modelHelper'),
+                  helperMaxLines: 2,
+                  border: const OutlineInputBorder(),
+                ),
               ),
-              const SizedBox(height: 8),
+              _fieldGap,
               TextField(
                 controller: _variantController,
-                decoration: InputDecoration(labelText: translate(locale, 'variant'), border: const OutlineInputBorder()),
+                decoration: InputDecoration(
+                  labelText: translate(locale, 'variant'),
+                  helperText: translate(locale, 'variantHelper'),
+                  helperMaxLines: 2,
+                  border: const OutlineInputBorder(),
+                ),
               ),
-              const SizedBox(height: 8),
+              _fieldGap,
               TextField(
                 controller: _yearController,
                 keyboardType: TextInputType.number,
                 decoration:
                     InputDecoration(labelText: translate(locale, 'manufacturingYear'), border: const OutlineInputBorder()),
               ),
+              _fieldGap,
               DropdownButtonFormField<String?>(
                 value: _fuelType,
                 decoration: InputDecoration(labelText: translate(locale, 'fuelType'), border: const OutlineInputBorder()),
                 items: [
-                  const DropdownMenuItem<String?>(value: null, child: Text('—')),
-                  ..._fuelTypes.map((f) => DropdownMenuItem<String?>(value: f, child: Text(f))),
+                  DropdownMenuItem<String?>(value: null, child: Text(translate(locale, 'fuelTypeNotSet'))),
+                  ...fuelTypes.map((f) => DropdownMenuItem<String?>(value: f, child: Text(fuelTypeDisplayLabel(locale, f)))),
                 ],
                 onChanged: (value) => setState(() => _fuelType = value),
               ),
-              const SizedBox(height: 8),
+              _fieldGap,
               TextField(
                 controller: _colorController,
                 decoration: InputDecoration(labelText: translate(locale, 'vehicleColor'), border: const OutlineInputBorder()),
               ),
-              const SizedBox(height: 8),
+              _sectionGap,
+              Text(translate(locale, 'identificationSection'), style: Theme.of(context).textTheme.titleMedium),
+              _fieldGap,
               TextField(
                 controller: _vinController,
                 decoration: InputDecoration(labelText: translate(locale, 'vinNumber'), border: const OutlineInputBorder()),
               ),
-              const SizedBox(height: 8),
+              _fieldGap,
               TextField(
                 controller: _engineController,
                 decoration: InputDecoration(labelText: translate(locale, 'engineNumber'), border: const OutlineInputBorder()),
               ),
               if (_error != null) ...[
-                const SizedBox(height: 8),
+                _fieldGap,
                 Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
               ],
-              const SizedBox(height: 16),
-              FilledButton(onPressed: _submitting ? null : _submit, child: Text(translate(locale, 'saveChanges'))),
+              _sectionGap,
+              FilledButton(
+                onPressed: _submitting ? null : _submit,
+                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                child: Text(translate(locale, 'saveChanges')),
+              ),
             ],
           );
         },

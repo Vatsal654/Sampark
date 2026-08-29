@@ -1,7 +1,11 @@
 /// Purpose: Add-vehicle form. `displayLabel` is explicitly framed to the
 /// owner as "shown to scanners" so they don't accidentally put a plate
 /// number or their name into the one field that IS public.
-/// Related: providers/vehicles_controller.dart, ../vehicle_validation.dart.
+/// Responsibilities: Only the fields Sampark's vehicle-contact use case
+/// actually needs — see vehicle_display.dart for the category/fuel
+/// dropdown label mapping and vehicle_validation.dart for field bounds.
+/// Related: providers/vehicles_controller.dart, ../vehicle_validation.dart,
+/// ../vehicle_display.dart.
 library;
 
 import 'package:flutter/material.dart';
@@ -10,10 +14,13 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/i18n/locale_provider.dart';
 import '../providers/vehicles_controller.dart';
+import '../vehicle_display.dart';
 import '../vehicle_validation.dart';
 
-const _categories = ['car', 'bike', 'scooter', 'taxi', 'commercial', 'other'];
-const _fuelTypes = ['petrol', 'diesel', 'electric', 'hybrid', 'cng', 'other'];
+/// Vertical rhythm shared by every field in Add/Edit Vehicle — one constant so spacing can never
+/// drift between the two screens or between fields within one screen.
+const _fieldGap = SizedBox(height: 16);
+const _sectionGap = SizedBox(height: 28);
 
 class AddVehicleScreen extends ConsumerStatefulWidget {
   const AddVehicleScreen({super.key});
@@ -32,7 +39,7 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
   final _colorController = TextEditingController();
   final _vinController = TextEditingController();
   final _engineController = TextEditingController();
-  String _category = _categories.first;
+  String _category = vehicleCategories.first;
   String? _fuelType;
   bool _submitting = false;
   String? _error;
@@ -112,74 +119,101 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          Text(translate(locale, 'vehicleInformationSection'), style: Theme.of(context).textTheme.titleMedium),
+          _fieldGap,
+          DropdownButtonFormField<String>(
+            value: _category,
+            decoration: InputDecoration(labelText: translate(locale, 'category'), border: const OutlineInputBorder()),
+            items: vehicleCategories
+                .map((c) => DropdownMenuItem(value: c, child: Text(categoryDisplayLabel(locale, c))))
+                .toList(),
+            onChanged: (value) => setState(() => _category = value ?? _category),
+          ),
+          _fieldGap,
           TextField(
             controller: _labelController,
             maxLength: 60,
             decoration: InputDecoration(labelText: translate(locale, 'displayLabel'), border: const OutlineInputBorder()),
           ),
-          DropdownButtonFormField<String>(
-            value: _category,
-            decoration: InputDecoration(labelText: translate(locale, 'category'), border: const OutlineInputBorder()),
-            items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-            onChanged: (value) => setState(() => _category = value ?? _category),
-          ),
-          const SizedBox(height: 8),
+          _fieldGap,
           TextField(
             controller: _plateController,
             decoration: InputDecoration(labelText: translate(locale, 'plateNumber'), border: const OutlineInputBorder()),
           ),
-          const SizedBox(height: 8),
+          _fieldGap,
           TextField(
             controller: _makeController,
-            decoration: InputDecoration(labelText: translate(locale, 'make'), border: const OutlineInputBorder()),
+            decoration: InputDecoration(
+              labelText: translate(locale, 'make'),
+              helperText: translate(locale, 'makeHelper'),
+              helperMaxLines: 2,
+              border: const OutlineInputBorder(),
+            ),
           ),
-          const SizedBox(height: 8),
+          _fieldGap,
           TextField(
             controller: _modelController,
-            decoration: InputDecoration(labelText: translate(locale, 'model'), border: const OutlineInputBorder()),
+            decoration: InputDecoration(
+              labelText: translate(locale, 'model'),
+              helperText: translate(locale, 'modelHelper'),
+              helperMaxLines: 2,
+              border: const OutlineInputBorder(),
+            ),
           ),
-          const SizedBox(height: 8),
+          _fieldGap,
           TextField(
             controller: _variantController,
-            decoration: InputDecoration(labelText: translate(locale, 'variant'), border: const OutlineInputBorder()),
+            decoration: InputDecoration(
+              labelText: translate(locale, 'variant'),
+              helperText: translate(locale, 'variantHelper'),
+              helperMaxLines: 2,
+              border: const OutlineInputBorder(),
+            ),
           ),
-          const SizedBox(height: 8),
+          _fieldGap,
           TextField(
             controller: _yearController,
             keyboardType: TextInputType.number,
             decoration:
                 InputDecoration(labelText: translate(locale, 'manufacturingYear'), border: const OutlineInputBorder()),
           ),
+          _fieldGap,
           DropdownButtonFormField<String?>(
             value: _fuelType,
             decoration: InputDecoration(labelText: translate(locale, 'fuelType'), border: const OutlineInputBorder()),
             items: [
-              const DropdownMenuItem<String?>(value: null, child: Text('—')),
-              ..._fuelTypes.map((f) => DropdownMenuItem<String?>(value: f, child: Text(f))),
+              DropdownMenuItem<String?>(value: null, child: Text(translate(locale, 'fuelTypeNotSet'))),
+              ...fuelTypes.map((f) => DropdownMenuItem<String?>(value: f, child: Text(fuelTypeDisplayLabel(locale, f)))),
             ],
             onChanged: (value) => setState(() => _fuelType = value),
           ),
-          const SizedBox(height: 8),
+          _fieldGap,
           TextField(
             controller: _colorController,
             decoration: InputDecoration(labelText: translate(locale, 'vehicleColor'), border: const OutlineInputBorder()),
           ),
-          const SizedBox(height: 8),
+          _sectionGap,
+          Text(translate(locale, 'identificationSection'), style: Theme.of(context).textTheme.titleMedium),
+          _fieldGap,
           TextField(
             controller: _vinController,
             decoration: InputDecoration(labelText: translate(locale, 'vinNumber'), border: const OutlineInputBorder()),
           ),
-          const SizedBox(height: 8),
+          _fieldGap,
           TextField(
             controller: _engineController,
             decoration: InputDecoration(labelText: translate(locale, 'engineNumber'), border: const OutlineInputBorder()),
           ),
           if (_error != null) ...[
-            const SizedBox(height: 8),
+            _fieldGap,
             Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ],
-          const SizedBox(height: 16),
-          FilledButton(onPressed: _submitting ? null : _submit, child: Text(translate(locale, 'save'))),
+          _sectionGap,
+          FilledButton(
+            onPressed: _submitting ? null : _submit,
+            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+            child: Text(translate(locale, 'save')),
+          ),
         ],
       ),
     );
