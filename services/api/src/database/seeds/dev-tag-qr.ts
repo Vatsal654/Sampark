@@ -26,9 +26,16 @@
  * real issued tag ever lands on this exact value is negligible, and
  * this script only runs in development anyway). None of this touches
  * TagsService.activate() or the production issuance endpoint — it only
- * writes a row shaped like what they already produce.
+ * writes a row shaped like what they already produce. The scanner
+ * origin the printed QR points at is overridable via SCANNER_BASE_URL
+ * (see resolveScannerBaseUrl below) so the QR can be scanned from a
+ * physical device on the same LAN, which can't resolve "localhost" as
+ * the developer's machine; this variable is intentionally NOT part of
+ * packages/shared-config's baseEnvSchema, so no production code path
+ * reads it and it has zero effect anywhere outside this script.
  * Related: modules/tags/tags.service.ts, modules/admin/admin.service.ts,
- * packages/shared-security/tag-signature.ts, database/seeds/seed.ts.
+ * packages/shared-security/tag-signature.ts, database/seeds/seed.ts,
+ * docs/LOCAL_DEVELOPMENT.md "Testing on a physical device".
  */
 /* eslint-disable no-console -- CLI script; stdout output is the intended UI */
 import 'reflect-metadata';
@@ -42,15 +49,46 @@ import { TagEntity } from '../entities';
 export const DEV_TAG_OPAQUE_ID = 'deadbeefdeadbeefdeadbeefdeadbeef';
 /** Matches the PIN seed.ts already uses for its demo tag — not a new convention. */
 export const DEV_TAG_ACTIVATION_PIN = '123456';
-const SCANNER_PORTAL_ORIGIN = 'http://localhost:3000';
+/** Same-machine default — correct for a browser/emulator running on the developer's own machine,
+ * wrong for a physical device on the LAN (which sees "localhost" as itself, not the developer's
+ * machine). Override with SCANNER_BASE_URL for physical-device testing. */
+export const DEFAULT_SCANNER_BASE_URL = 'http://localhost:3000';
 
 const TAG_SIGNING_SECRET = process.env.TAG_SIGNING_SECRET ?? 'dev-only-tag-signing-secret-do-not-use-in-prod-32ch';
 
+/**
+ * Resolves the scanner portal origin the printed QR points at. Defaults to
+ * DEFAULT_SCANNER_BASE_URL; set SCANNER_BASE_URL (e.g.
+ * `SCANNER_BASE_URL=http://192.168.1.8:3000`) to point a QR at a LAN IP so a phone on the same
+ * network — which cannot resolve "localhost" as the developer's machine — can actually reach it.
+ * Throws on a malformed value instead of silently falling back, so a typo fails loudly here
+ * rather than producing a QR the device can't reach. Takes `env` as a parameter (defaulting to
+ * `process.env`) purely so this is unit-testable without mutating global state.
+ */
+export function resolveScannerBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
+  const raw = env.SCANNER_BASE_URL?.trim();
+  if (!raw) return DEFAULT_SCANNER_BASE_URL;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new Error(`SCANNER_BASE_URL is not a valid URL: "${raw}"`);
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error(`SCANNER_BASE_URL must use http:// or https://, got "${raw}"`);
+  }
+  return parsed.origin;
+}
+
 /** The exact QR payload format the owner app's scanner and the public scanner portal both expect
- * (packages/shared-security/tag-signature.ts#buildTagPath / apps/mobile's extractOpaqueIdFromScan). */
-export function buildDevTagScanUrl(): string {
+ * (packages/shared-security/tag-signature.ts#buildTagPath / apps/mobile's extractOpaqueIdFromScan).
+ * `scannerBaseUrl` defaults to resolveScannerBaseUrl() so existing no-arg callers (main(), below)
+ * are unaffected; an explicit value is accepted so tests can exercise this without touching
+ * process.env. */
+export function buildDevTagScanUrl(scannerBaseUrl: string = resolveScannerBaseUrl()): string {
   const signature = signTagReference(DEV_TAG_OPAQUE_ID, TAG_SIGNING_SECRET);
-  return `${SCANNER_PORTAL_ORIGIN}/t/${DEV_TAG_OPAQUE_ID}.${signature}`;
+  return `${scannerBaseUrl}/t/${DEV_TAG_OPAQUE_ID}.${signature}`;
 }
 
 /** Extracted so the production gate itself is unit-testable without touching a real database. */
@@ -82,13 +120,25 @@ async function main(): Promise<void> {
     tag = await tags.save(tags.create({ opaqueId: DEV_TAG_OPAQUE_ID, status: 'issued', activationPinHash: pinHash }));
   }
 
-  const scanUrl = buildDevTagScanUrl();
+  const scannerBaseUrl = resolveScannerBaseUrl();
+  const scanUrl = buildDevTagScanUrl(scannerBaseUrl);
+  const usingDefault = scannerBaseUrl === DEFAULT_SCANNER_BASE_URL;
 
   console.log('\nDevelopment tag ready (development-only, never valid in production):\n');
   console.log(`  Opaque ID:        ${DEV_TAG_OPAQUE_ID}`);
   console.log(`  Status:           issued (unactivated — ready for the Activate Tag flow)`);
   console.log(`  Activation PIN:   ${DEV_TAG_ACTIVATION_PIN}`);
+  console.log(`  Scanner base URL: ${scannerBaseUrl}${usingDefault ? ' (default — only reachable from this machine)' : ''}`);
   console.log(`  QR payload/URL:   ${scanUrl}\n`);
+  if (usingDefault) {
+    console.log(
+      'Scanning this from a physical phone? "localhost" means the phone itself, not this machine.',
+    );
+    console.log(
+      'Set SCANNER_BASE_URL to this machine\'s LAN IP first, e.g.:\n' +
+        '  SCANNER_BASE_URL=http://192.168.1.8:3000 npm run dev:tag\n',
+    );
+  }
   console.log('Scan the QR below with the Sampark app\'s Activate Tag camera, then enter the PIN above:\n');
   qrcodeTerminal.generate(scanUrl, { small: true }, (qr) => console.log(qr));
 

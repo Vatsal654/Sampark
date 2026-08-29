@@ -64,6 +64,34 @@ when `NODE_ENV=production`. Re-running it resets the tag back to
 against it repeatedly while testing. See
 `services/api/src/database/seeds/dev-tag-qr.ts`.
 
+### Testing on a physical device
+
+By default the printed QR points at `http://localhost:3000` — correct
+only when the thing scanning it (a browser, an emulator) runs on the
+same machine as the API. A physical phone resolves "localhost" as
+*itself*, not your computer, so scanning the default QR from a phone
+fails to load (e.g. Safari's "localhost:3000 is not available").
+
+To generate a QR a phone on the same Wi-Fi/LAN can actually reach, set
+`SCANNER_BASE_URL` to your machine's LAN IP before running the script:
+
+```bash
+# find your LAN IP first:
+#   macOS:   ipconfig getifaddr en0
+#   Linux:   hostname -I
+#   Windows: ipconfig  (look for "IPv4 Address")
+
+SCANNER_BASE_URL=http://192.168.1.8:3000 npm run dev:tag
+```
+
+Make sure the scanner portal (`npm run dev:scanner`) is also reachable
+at that address (Next.js's dev server listens on all interfaces by
+default) and that your phone is on the same network. `SCANNER_BASE_URL`
+only affects this one script's printed QR — it is not part of the app's
+environment schema (`packages/shared-config/src/env.ts`), so no
+production code path reads it, and omitting it keeps the exact same
+`localhost` behavior as before.
+
 ## Test commands
 
 ```bash

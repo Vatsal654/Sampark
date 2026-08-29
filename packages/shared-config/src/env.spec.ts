@@ -33,4 +33,10 @@ describe('loadEnv', () => {
     const config = loadEnv(baseEnvSchema, { ...validEnv, FEATURE_REAL_SMS: '1' });
     expect(config.FEATURE_REAL_SMS).toBe(true);
   });
+
+  it('SCANNER_BASE_URL (dev-tag-qr.ts\'s physical-device override) is not part of this schema, so setting it in a real deployment has no effect on production config at all', () => {
+    expect(Object.keys(baseEnvSchema.shape)).not.toContain('SCANNER_BASE_URL');
+    const config = loadEnv(baseEnvSchema, { ...validEnv, SCANNER_BASE_URL: 'http://192.168.1.8:3000' });
+    expect(config).not.toHaveProperty('SCANNER_BASE_URL');
+  });
 });

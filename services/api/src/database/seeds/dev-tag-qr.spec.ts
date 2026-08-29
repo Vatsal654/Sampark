@@ -1,5 +1,12 @@
 import { isPlausibleOpaqueTagId, parseTagPath, verifyTagSignature } from '@sampark/shared-security';
-import { assertNotProduction, buildDevTagScanUrl, DEV_TAG_ACTIVATION_PIN, DEV_TAG_OPAQUE_ID } from './dev-tag-qr';
+import {
+  assertNotProduction,
+  buildDevTagScanUrl,
+  DEFAULT_SCANNER_BASE_URL,
+  DEV_TAG_ACTIVATION_PIN,
+  DEV_TAG_OPAQUE_ID,
+  resolveScannerBaseUrl,
+} from './dev-tag-qr';
 
 const TAG_SIGNING_SECRET = process.env.TAG_SIGNING_SECRET ?? 'dev-only-tag-signing-secret-do-not-use-in-prod-32ch';
 
@@ -45,6 +52,53 @@ describe('buildDevTagScanUrl — QR payload format', () => {
   });
 });
 
+describe('resolveScannerBaseUrl — SCANNER_BASE_URL override for physical-device testing', () => {
+  it('defaults to localhost when SCANNER_BASE_URL is unset', () => {
+    expect(resolveScannerBaseUrl({})).toBe(DEFAULT_SCANNER_BASE_URL);
+  });
+
+  it('uses the configured LAN base URL instead of silently falling back to localhost', () => {
+    const resolved = resolveScannerBaseUrl({ SCANNER_BASE_URL: 'http://192.168.1.8:3000' });
+    expect(resolved).toBe('http://192.168.1.8:3000');
+    expect(resolved).not.toContain('localhost');
+  });
+
+  it('normalizes a trailing slash the same way for either origin', () => {
+    expect(resolveScannerBaseUrl({ SCANNER_BASE_URL: 'http://192.168.1.8:3000/' })).toBe('http://192.168.1.8:3000');
+  });
+
+  it('rejects a malformed SCANNER_BASE_URL instead of silently falling back to localhost', () => {
+    expect(() => resolveScannerBaseUrl({ SCANNER_BASE_URL: 'not-a-url' })).toThrow('is not a valid URL');
+  });
+
+  it('rejects a non-http(s) scheme instead of silently falling back to localhost', () => {
+    expect(() => resolveScannerBaseUrl({ SCANNER_BASE_URL: 'javascript:alert(1)' })).toThrow(
+      'must use http:// or https://',
+    );
+  });
+});
+
+describe('buildDevTagScanUrl — configured base URL leaves the opaque ID and signature intact', () => {
+  it('produces the same opaque ID and a validly-signed path regardless of which scanner base URL is used', () => {
+    const localUrl = buildDevTagScanUrl(DEFAULT_SCANNER_BASE_URL);
+    const lanUrl = buildDevTagScanUrl('http://192.168.1.8:3000');
+
+    const localFragment = localUrl.split('/t/')[1]!;
+    const lanFragment = lanUrl.split('/t/')[1]!;
+    expect(lanFragment).toBe(localFragment);
+
+    const parsed = parseTagPath(lanFragment)!;
+    expect(parsed.opaqueId).toBe(DEV_TAG_OPAQUE_ID);
+    expect(verifyTagSignature(parsed.opaqueId, parsed.signature, TAG_SIGNING_SECRET)).toBe(true);
+  });
+
+  it('places the configured base URL, and only it, in front of the unchanged /t/ path', () => {
+    const url = buildDevTagScanUrl('http://192.168.1.8:3000');
+    expect(url).toBe(`http://192.168.1.8:3000/t/${url.split('/t/')[1]}`);
+    expect(url).not.toContain('localhost');
+  });
+});
+
 describe('assertNotProduction — development-only gating', () => {
   const originalNodeEnv = process.env.NODE_ENV;
   afterEach(() => {
@@ -64,5 +118,12 @@ describe('assertNotProduction — development-only gating', () => {
   it('does not throw when NODE_ENV is unset (matches every other dev-only gate in this codebase)', () => {
     delete process.env.NODE_ENV;
     expect(() => assertNotProduction()).not.toThrow();
+  });
+
+  it('still refuses to run under NODE_ENV=production even with a LAN SCANNER_BASE_URL configured — a dev override can never bypass the production gate', () => {
+    process.env.NODE_ENV = 'production';
+    expect(() =>
+      resolveScannerBaseUrl({ NODE_ENV: 'production', SCANNER_BASE_URL: 'http://192.168.1.8:3000' }) && assertNotProduction(),
+    ).toThrow('Refusing to generate a development tag against a production environment.');
   });
 });
