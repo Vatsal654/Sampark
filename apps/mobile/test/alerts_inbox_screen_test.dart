@@ -24,6 +24,7 @@ class _FakeAlertsController extends AlertsController {
     this.archiveShouldFail = false,
     this.unarchiveShouldFail = false,
     this.unarchiveError,
+    this.buildError,
   }) : _alerts = seed;
 
   List<AlertEvent> _alerts;
@@ -31,9 +32,18 @@ class _FakeAlertsController extends AlertsController {
   bool archiveShouldFail;
   bool unarchiveShouldFail;
   Object? unarchiveError;
+  // Thrown on the FIRST build() only — simulates GET /owner/alerts failing once (e.g. the
+  // physical-device "both tabs show Something went wrong" report), then succeeding on retry
+  // (tapping "Try again" calls ref.invalidate(alertsControllerProvider), which re-runs build()).
+  Object? buildError;
+  int buildCallCount = 0;
 
   @override
-  Future<List<AlertEvent>> build() async => _alerts;
+  Future<List<AlertEvent>> build() async {
+    buildCallCount++;
+    if (buildError != null && buildCallCount == 1) throw buildError!;
+    return _alerts;
+  }
 
   AlertEvent _copyWith(AlertEvent a, {DateTime? acknowledgedAt, Object? archivedAt = _unset}) => AlertEvent(
         id: a.id,
@@ -80,13 +90,13 @@ class _FakeAlertsController extends AlertsController {
   }
 }
 
-/// A DioException shaped like what the real ApiClient would throw for a 403 from
-/// POST /owner/alerts/:id/unarchive (another owner's token) — see
-/// AlertsService.unarchive()'s getOwned() check in services/api.
-DioException _forbiddenDioException(String path) => DioException(
-      requestOptions: RequestOptions(path: path, method: 'POST'),
+/// A DioException shaped like what the real ApiClient would throw for a 403 — e.g. from
+/// POST /owner/alerts/:id/unarchive with another owner's token, or from GET /owner/alerts itself
+/// — see AlertsService's getOwned()/JwtAuthGuard checks in services/api.
+DioException _forbiddenDioException(String path, {String method = 'POST'}) => DioException(
+      requestOptions: RequestOptions(path: path, method: method),
       response: Response(
-        requestOptions: RequestOptions(path: path, method: 'POST'),
+        requestOptions: RequestOptions(path: path, method: method),
         statusCode: 403,
         data: {'message': 'Not your alert'},
       ),
@@ -140,6 +150,45 @@ void main() {
     expect(find.widgetWithText(TextButton, translate(AppLocale.en, 'acknowledge')), findsOneWidget);
     expect(find.widgetWithText(TextButton, translate(AppLocale.en, 'archive')), findsOneWidget);
   });
+
+  testWidgets(
+    'regression: GET /owner/alerts failing shows a diagnosable, retryable error instead of a silent/blank screen '
+    '(the "both Active and Archived show Something went wrong" physical-device report)',
+    (tester) async {
+      final controller = _FakeAlertsController(
+        [_seedAlert()],
+        buildError: _forbiddenDioException('/owner/alerts', method: 'GET'),
+      );
+      await _pumpScreen(tester, controller);
+
+      // A real, classified error is shown — never a raw crash, never a silently-empty or falsely
+      // successful list. Before this fix, alertsAsync.when(error: (error, _) => ...) discarded
+      // `error` entirely, so this state had no diagnostic value even though it was visible.
+      expect(find.text(translate(AppLocale.en, 'errorGeneric')), findsOneWidget);
+      expect(find.text('blocking access'), findsNothing);
+
+      // The on-page diagnostics panel (the thing this regression proves exists now) shows exactly
+      // what happened for THIS load attempt — method, URL, status, classification — the same
+      // panel used for acknowledge/archive/unarchive, reused here for the list load itself.
+      final diagnostics = find.byKey(const Key('mutation-diagnostics-list'));
+      expect(diagnostics, findsOneWidget);
+      final column = tester.widget<Column>(find.descendant(of: diagnostics, matching: find.byType(Column)));
+      final rendered = column.children.whereType<Text>().map((t) => t.data).join('\n');
+      expect(rendered, contains('method: GET'));
+      expect(rendered, contains('/owner/alerts'));
+      expect(rendered, contains('classification: unauthorized'));
+      expect(rendered, contains('responseStatus: 403'));
+
+      // And it's actually actionable, not a dead end: retrying re-invokes the provider, and once
+      // the underlying failure clears (as it would on a real retry after e.g. a transient network
+      // blip or a token refresh), the real list loads normally.
+      await tester.tap(find.widgetWithText(FilledButton, translate(AppLocale.en, 'retry')));
+      await tester.pumpAndSettle();
+      expect(find.text(translate(AppLocale.en, 'errorGeneric')), findsNothing);
+      expect(find.text('blocking access'), findsOneWidget);
+      expect(controller.buildCallCount, 2);
+    },
+  );
 
   testWidgets('acknowledge success: shows a persisted "Acknowledged" state only after the mutation resolves', (tester) async {
     final controller = _FakeAlertsController([_seedAlert()]);

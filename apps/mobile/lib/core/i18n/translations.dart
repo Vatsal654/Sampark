@@ -138,6 +138,7 @@ const Map<String, Map<AppLocale, String>> _dictionary = {
     AppLocale.en: 'Your session expired. Please sign in again.',
     AppLocale.ne: 'तपाईंको सत्र समाप्त भयो। कृपया फेरि साइन इन गर्नुहोस्।',
   },
+  'retry': {AppLocale.en: 'Try again', AppLocale.ne: 'फेरि प्रयास गर्नुहोस्'},
   'cameraPermissionDenied': {
     AppLocale.en: 'Camera access is off for Sampark. Enable it in your device Settings to scan a tag.',
     AppLocale.ne: 'सम्पर्कका लागि क्यामेरा पहुँच बन्द छ। ट्याग स्क्यान गर्न आफ्नो डिभाइस सेटिङमा यसलाई सक्षम गर्नुहोस्।',

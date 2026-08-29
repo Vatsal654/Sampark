@@ -24,6 +24,14 @@
 /// describes for the OTP flow, which made a physical-device failure here
 /// impossible to diagnose remotely. Never shown in release builds; never
 /// includes a phone number, token, or other PII (see redactForLog).
+/// The initial GET /owner/alerts (AlertsController.build()) had the same
+/// bug one level up: `alertsAsync.when(error: (error, _) => ...)`
+/// discarded the AsyncError's `error` object completely, so a failure to
+/// even LOAD the list — before any card, and therefore any per-card
+/// diagnostics panel, could ever render — was invisible everywhere. That
+/// branch now logs and shows the same diagnostics panel plus a retry
+/// button, so "both tabs show Something went wrong" is diagnosable
+/// instead of a dead end.
 library;
 
 import 'package:dio/dio.dart';
@@ -47,6 +55,14 @@ class AlertsInboxScreen extends ConsumerWidget {
     final locale = ref.watch(localeProvider);
     final alertsAsync = ref.watch(alertsControllerProvider);
 
+    // Fires only on a transition INTO an error state (ref.listen, not ref.watch) — logs once per
+    // real failure rather than once per rebuild while an already-known error is still showing.
+    ref.listen<AsyncValue<List<AlertEvent>>>(alertsControllerProvider, (previous, next) {
+      if (next.hasError) {
+        logApiError('AlertsInboxScreen.load', next.error!, next.stackTrace);
+      }
+    });
+
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -61,7 +77,7 @@ class AlertsInboxScreen extends ConsumerWidget {
         ),
         body: alertsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => Center(child: Text(translate(locale, 'errorGeneric'))),
+          error: (error, stackTrace) => _AlertsLoadError(ref: ref, error: error, stackTrace: stackTrace),
           data: (alerts) {
             final active = alerts.where((a) => a.archivedAt == null).toList();
             final archived = alerts.where((a) => a.archivedAt != null).toList();
@@ -72,6 +88,61 @@ class AlertsInboxScreen extends ConsumerWidget {
               ],
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown when GET /owner/alerts itself fails — before any card, and therefore any per-card
+/// mutation diagnostics panel, can ever render. Never silently retries and never shows a
+/// success/empty state instead of the real error; a "Try again" button re-invokes the provider
+/// (a fresh GET), and in debug builds only, the same _MutationDiagnostics panel used for
+/// acknowledge/archive/unarchive shows exactly what happened for this load attempt.
+class _AlertsLoadError extends StatelessWidget {
+  const _AlertsLoadError({required this.ref, required this.error, required this.stackTrace});
+  final WidgetRef ref;
+  final Object error;
+  final StackTrace stackTrace;
+
+  @override
+  Widget build(BuildContext context) {
+    final locale = ref.watch(localeProvider);
+    // A local variable, not `error` (a public field) directly — Dart's flow-analysis type
+    // promotion via `is`-checks only applies to private final fields or local variables, so
+    // `error is DioException ? error.response : ...` would not type-check on the public field.
+    final capturedError = error;
+    final classification = _classifyMutationError(capturedError);
+    final message = classification == 'session_expired'
+        ? translate(locale, 'errorSessionExpired')
+        : classification == 'network_error'
+            ? translate(locale, 'errorNetwork')
+            : translate(locale, 'errorGeneric');
+    final baseUrl = ref.read(apiClientProvider).raw.options.baseUrl;
+    final diagnostics = _MutationDiagnostics(
+      action: 'list',
+      method: 'GET',
+      url: '$baseUrl/owner/alerts',
+      submissionStarted: true,
+      responseStatus: capturedError is DioException ? capturedError.response?.statusCode : null,
+      exception: _describeMutationError(capturedError),
+      classification: classification,
+    );
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(message, textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: () => ref.invalidate(alertsControllerProvider),
+              child: Text(translate(locale, 'retry')),
+            ),
+            if (kDebugMode) _MutationDiagnosticsPanel(data: diagnostics),
+          ],
         ),
       ),
     );
