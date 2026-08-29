@@ -10,6 +10,20 @@ class AlertDelivery {
   final String status;
 }
 
+/// The scanner's exact coordinates for one alert — present only when the scanner explicitly
+/// opted in to sharing location on that specific alert (see AlertFlow.tsx's "Share my location"
+/// checkbox). Never derived from anything else, and never present on a public/anonymous read —
+/// this type only exists on the owner-authenticated AlertEvent view.
+class ScannerLocation {
+  const ScannerLocation({required this.latitude, required this.longitude});
+  factory ScannerLocation.fromJson(Map<String, dynamic> json) => ScannerLocation(
+        latitude: (json['latitude'] as num).toDouble(),
+        longitude: (json['longitude'] as num).toDouble(),
+      );
+  final double latitude;
+  final double longitude;
+}
+
 class AlertEvent {
   const AlertEvent({
     required this.id,
@@ -17,6 +31,7 @@ class AlertEvent {
     required this.severity,
     required this.note,
     required this.scannerLocationLabel,
+    required this.scannerLocationExact,
     required this.createdAt,
     required this.acknowledgedAt,
     required this.archivedAt,
@@ -29,6 +44,9 @@ class AlertEvent {
         severity: json['severity'] as String,
         note: json['note'] as String?,
         scannerLocationLabel: json['scannerLocationLabel'] as String?,
+        scannerLocationExact: json['scannerLocationExact'] != null
+            ? ScannerLocation.fromJson(json['scannerLocationExact'] as Map<String, dynamic>)
+            : null,
         createdAt: DateTime.parse(json['createdAt'] as String),
         acknowledgedAt: json['acknowledgedAt'] != null ? DateTime.parse(json['acknowledgedAt'] as String) : null,
         archivedAt: json['archivedAt'] != null ? DateTime.parse(json['archivedAt'] as String) : null,
@@ -42,6 +60,7 @@ class AlertEvent {
   final String severity;
   final String? note;
   final String? scannerLocationLabel;
+  final ScannerLocation? scannerLocationExact;
   final DateTime createdAt;
   final DateTime? acknowledgedAt;
   final DateTime? archivedAt;

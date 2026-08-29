@@ -100,6 +100,13 @@ const Map<String, Map<AppLocale, String>> _dictionary = {
   'noAlertsYet': {AppLocale.en: 'No alerts yet.', AppLocale.ne: 'अहिलेसम्म कुनै सतर्कता छैन।'},
   'acknowledge': {AppLocale.en: 'Acknowledge', AppLocale.ne: 'स्वीकार गर्नुहोस्'},
   'archive': {AppLocale.en: 'Archive', AppLocale.ne: 'सङ्ग्रह गर्नुहोस्'},
+  'acknowledgedLabel': {AppLocale.en: 'Acknowledged', AppLocale.ne: 'स्वीकार गरियो'},
+  'archivedLabel': {AppLocale.en: 'Archived', AppLocale.ne: 'सङ्ग्रहित'},
+  'locationSharedLabel': {
+    AppLocale.en: 'Location shared by the person who sent this alert',
+    AppLocale.ne: 'यो सतर्कता पठाउने व्यक्तिले स्थान साझा गर्नुभयो',
+  },
+  'openInMaps': {AppLocale.en: 'Open in Maps', AppLocale.ne: 'नक्सामा खोल्नुहोस्'},
   'pauseTag': {AppLocale.en: 'Pause this tag', AppLocale.ne: 'यो ट्याग रोक्नुहोस्'},
   'resumeTag': {AppLocale.en: 'Resume this tag', AppLocale.ne: 'यो ट्याग पुनः सुरु गर्नुहोस्'},
   'reportLost': {AppLocale.en: 'Report lost or stolen', AppLocale.ne: 'हराएको वा चोरी भएको रिपोर्ट गर्नुहोस्'},

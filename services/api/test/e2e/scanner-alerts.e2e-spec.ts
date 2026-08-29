@@ -100,6 +100,67 @@ describe('Scanner alerts (e2e)', () => {
     expect(archive.status).toBe(201);
   });
 
+  it('persists acknowledged/archived state across a fresh GET, not just in the mutation response', async () => {
+    const { owner, opaqueId, signature } = await activateTag(app);
+    const submit = await request(app.getHttpServer())
+      .post(`/v1/public/tags/${opaqueId}/alerts?sig=${signature}`)
+      .send({ category: 'other' });
+    const alertId = submit.body.alertId as string;
+
+    await request(app.getHttpServer())
+      .post(`/v1/owner/alerts/${alertId}/acknowledge`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(`/v1/owner/alerts/${alertId}/archive`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(201);
+
+    // A brand new GET (a different HTTP request entirely, simulating reopening the owner app)
+    // must reflect both mutations from the database, not from anything held in memory across the
+    // two prior requests.
+    const inbox = await request(app.getHttpServer())
+      .get('/v1/owner/alerts')
+      .set('Authorization', `Bearer ${owner.accessToken}`);
+    expect(inbox.body[0].acknowledgedAt).toEqual(expect.any(String));
+    expect(inbox.body[0].archivedAt).toEqual(expect.any(String));
+  });
+
+  it('rejects out-of-range coordinates instead of silently storing or ignoring them', async () => {
+    const { opaqueId, signature } = await activateTag(app);
+
+    const response = await request(app.getHttpServer())
+      .post(`/v1/public/tags/${opaqueId}/alerts?sig=${signature}`)
+      .send({ category: 'blocking_access', location: { latitude: 200, longitude: 85.3 } });
+    expect(response.status).toBe(400);
+  });
+
+  it('never lets one owner see, acknowledge, or archive another owner\'s alert (or its location)', async () => {
+    const { opaqueId, signature } = await activateTag(app);
+    const submit = await request(app.getHttpServer())
+      .post(`/v1/public/tags/${opaqueId}/alerts?sig=${signature}`)
+      .send({ category: 'blocking_access', location: { latitude: 27.7, longitude: 85.3 } });
+    const alertId = submit.body.alertId as string;
+
+    const otherOwner = await signUpOwner(app);
+
+    const inbox = await request(app.getHttpServer())
+      .get('/v1/owner/alerts')
+      .set('Authorization', `Bearer ${otherOwner.accessToken}`);
+    expect(inbox.status).toBe(200);
+    expect(inbox.body).toEqual([]); // the other owner's inbox never contains this alert or its location at all
+
+    const ack = await request(app.getHttpServer())
+      .post(`/v1/owner/alerts/${alertId}/acknowledge`)
+      .set('Authorization', `Bearer ${otherOwner.accessToken}`);
+    expect(ack.status).toBe(403);
+
+    const archive = await request(app.getHttpServer())
+      .post(`/v1/owner/alerts/${alertId}/archive`)
+      .set('Authorization', `Bearer ${otherOwner.accessToken}`);
+    expect(archive.status).toBe(403);
+  });
+
   it('rejects an alert against a tag that is not active', async () => {
     const admin = await signUpAdmin(app);
     const { opaqueId } = await issueTag(app, admin.accessToken); // status: issued, not activated
