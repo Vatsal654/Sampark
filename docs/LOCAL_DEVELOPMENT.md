@@ -122,7 +122,11 @@ console warning naming exactly which env var to fix.
 npm run test                          # unit tests, all TS workspaces
 npm run --workspace services/api test:integration   # needs docker (testcontainers)
 npm run --workspace services/api test:e2e
-npm run --workspace apps/scanner-portal test:e2e     # Playwright
+npm run --workspace apps/scanner-portal test:e2e     # Playwright, against a production build
+npm run --workspace apps/scanner-portal test:e2e:dev # Playwright, against a real `next dev` server —
+                                                      # catches dev-only regressions (e.g. a CSP that
+                                                      # blocks next dev's own Fast Refresh runtime) that
+                                                      # test:e2e can never see
 npm run --workspace apps/admin test:e2e              # Playwright
 cd apps/mobile && flutter test
 ```

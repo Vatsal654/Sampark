@@ -2,11 +2,16 @@
  * Purpose: Playwright config for the scanner portal — runs against a
  * production build served locally, with the API base URL pointed at a
  * running Sampark API (see e2e/README.md).
+ * Related: playwright.dev.config.ts, which runs e2e/dev-mode.spec.ts
+ * (excluded here) against a real `next dev` server instead — some of
+ * its assertions (e.g. CSP containing 'unsafe-eval') are true only in
+ * dev mode and would fail against this config's production build.
  */
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
+  testIgnore: ['dev-mode.spec.ts'],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
