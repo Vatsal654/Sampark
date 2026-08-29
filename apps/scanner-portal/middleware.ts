@@ -18,6 +18,20 @@
  * randomly-generated-per-request scripts Next.js itself needs to emit.
  * connect-src still allow-lists only 'self' plus the configured API
  * origin, so this makes no other endpoint reachable than before.
+ * `next dev`'s webpack Hot Module Replacement / Fast Refresh runtime
+ * wraps every module in an `eval(...)` call (its `eval-source-map`
+ * devtool) — completely standard webpack dev-server behavior, and
+ * unrelated to anything this app's code does. Without 'unsafe-eval' in
+ * script-src, the browser silently refuses to run ANY client JS under
+ * `next dev` (confirmed via a live browser's own console:
+ * "Refused to evaluate a string as JavaScript because 'unsafe-eval' is
+ * not an allowed source of script..."), which blocks hydration just as
+ * completely as the missing-nonce bug this file originally fixed — the
+ * user-visible result is identical: a page stuck on "Loading…" and zero
+ * requests ever reaching the API. `next build`/`next start` (and any
+ * real deployment) never use eval-based module wrapping, so
+ * 'unsafe-eval' is added ONLY when NODE_ENV !== 'production' — the
+ * production CSP served to real users is exactly as strict as before.
  * Related: next.config.js, docs/SECURITY.md "Transport & headers".
  */
 import { NextResponse, type NextRequest } from 'next/server';
@@ -38,11 +52,18 @@ export function apiOriginForCsp(rawApiBaseUrl: string | undefined): string {
   }
 }
 
-/** Pure so it's unit-testable without a real NextRequest/middleware invocation. */
-export function buildCspHeader(nonce: string, apiOrigin: string): string {
+/**
+ * Pure so it's unit-testable without a real NextRequest/middleware invocation. `isDevelopment`
+ * gates 'unsafe-eval' — required for `next dev`'s webpack HMR/Fast Refresh runtime, never added
+ * for a production build (see the file header for why).
+ */
+export function buildCspHeader(nonce: string, apiOrigin: string, isDevelopment: boolean): string {
+  const scriptSrc = isDevelopment
+    ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval'`
+    : `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`;
   return [
     `default-src 'self'`,
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    scriptSrc,
     `style-src 'self' 'unsafe-inline'`,
     `img-src 'self' data:`,
     `connect-src 'self' ${apiOrigin}`.trim(),
@@ -54,7 +75,11 @@ export function buildCspHeader(nonce: string, apiOrigin: string): string {
 
 export function middleware(request: NextRequest) {
   const nonce = crypto.randomUUID();
-  const cspHeader = buildCspHeader(nonce, apiOriginForCsp(process.env.NEXT_PUBLIC_API_BASE_URL));
+  const cspHeader = buildCspHeader(
+    nonce,
+    apiOriginForCsp(process.env.NEXT_PUBLIC_API_BASE_URL),
+    process.env.NODE_ENV !== 'production',
+  );
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-nonce', nonce);
