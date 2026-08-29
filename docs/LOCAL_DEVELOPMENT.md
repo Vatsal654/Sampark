@@ -92,6 +92,30 @@ environment schema (`packages/shared-config/src/env.ts`), so no
 production code path reads it, and omitting it keeps the exact same
 `localhost` behavior as before.
 
+Getting the phone to *open* the scanner portal is only half of it — the
+portal itself then needs to reach the API from the phone's browser. Two
+more settings need to point at your LAN IP too:
+
+1. **`apps/scanner-portal/.env.local`** — set
+   `NEXT_PUBLIC_API_BASE_URL=http://192.168.1.8:3001/v1` (same LAN IP,
+   API's port). Like `SCANNER_BASE_URL` above, Next.js inlines this into
+   the client bundle at server-*start* time — after changing it, restart
+   `npm run dev:scanner` (or rebuild, for a production build); a browser
+   refresh alone keeps serving the old value.
+2. **`services/api/.env`** — add the LAN scanner-portal origin to
+   `CORS_ALLOWED_ORIGINS`, e.g.
+   `CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3002,http://192.168.1.8:3000`,
+   and restart the API. Without this the phone's browser will block the
+   request as cross-origin even though it reaches the API.
+
+If the page loads but the tag lookup silently fails, open Safari's Web
+Inspector (connect the phone to a Mac via cable, enable it under
+Settings → Safari → Advanced → Web Inspector, then Develop menu on the
+Mac) or your desktop browser's console when testing the same URL there —
+`lib/api-client.ts` logs the exact URL it tried and, specifically for
+this "loaded from a LAN IP but API base is still localhost" case, a
+console warning naming exactly which env var to fix.
+
 ## Test commands
 
 ```bash
