@@ -19,7 +19,8 @@
     "dev:api": "npm run start:dev --workspace services/api",
     "dev:worker": "npm run start:dev --workspace services/worker",
     "dev:scanner": "npm run dev --workspace apps/scanner-portal",
-    "dev:admin": "npm run dev --workspace apps/admin"
+    "dev:admin": "npm run dev --workspace apps/admin",
+    "dev:tag": "npm run dev:tag --workspace services/api"
   },
   "devDependencies": {
     "typescript": "^5.5.4",

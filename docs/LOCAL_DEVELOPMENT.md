@@ -50,6 +50,20 @@ lifecycle states, and sample alert history, so the scanner portal and
 admin console have something to show immediately. See
 `services/api/src/database/seeds/`.
 
+## Testing tag activation without a physical tag
+
+`npm run dev:tag` (API must be running) creates one development tag —
+`status: issued`, PIN `123456`, opaque ID `deadbeefdeadbeefdeadbeefdeadbeef`
+— and prints its real, correctly-signed scanner QR straight to the
+terminal. Scan it with the owner app's own Activate Tag camera (not a
+generic QR app) and enter `123456` when prompted; it goes through the
+exact same `POST /owner/tags/activate` the real activation flow uses —
+this is not a shortcut or a parallel code path. Refuses to run at all
+when `NODE_ENV=production`. Re-running it resets the tag back to
+`issued` (clearing any previous activation), so it's safe to activate
+against it repeatedly while testing. See
+`services/api/src/database/seeds/dev-tag-qr.ts`.
+
 ## Test commands
 
 ```bash
