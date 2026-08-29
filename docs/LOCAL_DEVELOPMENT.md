@@ -105,16 +105,23 @@ more settings need to point at your LAN IP too:
 2. **`services/api/.env`** — add the LAN scanner-portal origin to
    `CORS_ALLOWED_ORIGINS`, e.g.
    `CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3002,http://192.168.1.8:3000`,
-   and restart the API. Without this the phone's browser will block the
-   request as cross-origin even though it reaches the API.
+   and restart the API. **This step is easy to miss and its failure is
+   easy to misread as "the app isn't calling the API at all":** without
+   it, the phone's browser blocks the request via CORS — silently, with
+   no error on the API's own terminal (there's no access log for a
+   rejected preflight), and the app can only show a generic failure
+   screen, because a CORS rejection and a genuinely unreachable API
+   produce the exact same `TypeError: Failed to fetch` in JavaScript, by
+   browser design. If you've set `NEXT_PUBLIC_API_BASE_URL` correctly and
+   the API terminal shows nothing when you scan, check this setting
+   before anything else.
 
 If the page loads but the tag lookup silently fails, open Safari's Web
 Inspector (connect the phone to a Mac via cable, enable it under
 Settings → Safari → Advanced → Web Inspector, then Develop menu on the
 Mac) or your desktop browser's console when testing the same URL there —
-`lib/api-client.ts` logs the exact URL it tried and, specifically for
-this "loaded from a LAN IP but API base is still localhost" case, a
-console warning naming exactly which env var to fix.
+`lib/api-client.ts` logs the exact URL it tried and a console warning
+naming which of the two settings above to check.
 
 ## Test commands
 
@@ -127,6 +134,12 @@ npm run --workspace apps/scanner-portal test:e2e:dev # Playwright, against a rea
                                                       # catches dev-only regressions (e.g. a CSP that
                                                       # blocks next dev's own Fast Refresh runtime) that
                                                       # test:e2e can never see
+npm run --workspace apps/scanner-portal test:e2e:cors # Playwright, against a real (non-mocked) HTTP
+                                                       # response — catches a CORS_ALLOWED_ORIGINS gap
+                                                       # like "Testing on a physical device" above;
+                                                       # page.route() interception can't test this since
+                                                       # it never touches a real response, so CORS is
+                                                       # never actually enforced
 npm run --workspace apps/admin test:e2e              # Playwright
 cd apps/mobile && flutter test
 ```

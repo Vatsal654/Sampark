@@ -39,28 +39,55 @@ export function resolveApiBaseUrl(configuredValue: string | undefined): string {
 const API_BASE_URL = resolveApiBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL);
 
 /**
- * Returns a developer-facing hint when the API base URL looks unreachable from the device that
- * loaded this page — specifically the exact failure this exists to catch: the page was opened
- * via a LAN IP (a physical phone) but the API base URL is still a loopback address, which on that
- * phone refers to the phone itself. Returns null when there's nothing suspicious to report (both
- * loopback — normal same-machine dev; API already non-loopback — correctly configured; or a
- * malformed API base URL, which is reported elsewhere). Pure and side-effect free so it's
- * unit-testable on its own.
+ * Returns a developer-facing troubleshooting hint for a fetch that has already failed (this is
+ * only ever called from inside request()'s catch block, never speculatively) — so even when the
+ * configuration looks correct at a glance, something is still genuinely wrong and staying silent
+ * would be the wrong call. Always returns a hint, tailored to what it can tell from the URLs
+ * alone:
+ *
+ * - The confident case: the page was opened via a non-loopback host (a physical phone on the
+ *   LAN) but the API base URL is still a loopback address, which on that phone refers to the
+ *   phone itself, not the developer's computer.
+ * - The general case (everything else, malformed API base URL included): the browser's fetch()
+ *   deliberately reports a network failure and a CORS rejection identically — a `TypeError:
+ *   Failed to fetch` with no further detail, for security reasons no application code can see
+ *   around. A same-origin desktop setup only ever hits the first kind (the target is genuinely
+ *   down); LAN/physical-device testing very commonly hits the second: NEXT_PUBLIC_API_BASE_URL
+ *   and the page's own origin can both look perfectly correct while the API's
+ *   CORS_ALLOWED_ORIGINS simply hasn't been updated to include this page's origin, which the
+ *   browser then blocks with no server-side trace at all (NestJS logs no access log for a
+ *   rejected/any other preflight by default) — indistinguishable, from here, from the API being
+ *   unreachable outright. So this hint names both possibilities every time, rather than guessing.
+ *
+ * Pure and side-effect free so it's unit-testable on its own.
  */
-export function unreachableApiHint(apiBaseUrl: string, pageHostname: string): string | null {
+export function unreachableApiHint(apiBaseUrl: string, pageHostname: string): string {
   const isLoopback = (host: string) => host === 'localhost' || host === '127.0.0.1' || host === '::1';
-  let apiHost: string;
+  let apiHost: string | null;
   try {
     apiHost = new URL(apiBaseUrl).hostname;
   } catch {
-    return null;
+    apiHost = null;
   }
-  if (!isLoopback(apiHost) || isLoopback(pageHostname)) return null;
+
+  if (apiHost && isLoopback(apiHost) && !isLoopback(pageHostname)) {
+    return (
+      `This page was loaded from "${pageHostname}", but the API base URL is still "${apiBaseUrl}" — ` +
+      `"localhost" refers to this device, not your computer. Set NEXT_PUBLIC_API_BASE_URL to your ` +
+      `computer's LAN IP (e.g. http://192.168.1.8:3001/v1) in apps/scanner-portal/.env.local and ` +
+      `restart the dev server — env vars are inlined at server start, not read live.`
+    );
+  }
+
   return (
-    `This page was loaded from "${pageHostname}", but the API base URL is still "${apiBaseUrl}" — ` +
-    `"localhost" refers to this device, not your computer. Set NEXT_PUBLIC_API_BASE_URL to your ` +
-    `computer's LAN IP (e.g. http://192.168.1.8:3001/v1) in apps/scanner-portal/.env.local and ` +
-    `restart the dev server — env vars are inlined at server start, not read live.`
+    `Could not reach "${apiBaseUrl}" from a page loaded at "${pageHostname}". The browser reports ` +
+    `network failures and CORS rejections identically, so this could be either: (1) the API isn't ` +
+    `actually reachable at that address from this device, or (2) — very common when testing from a ` +
+    `LAN device — the API's CORS_ALLOWED_ORIGINS doesn't include this page's exact origin yet, which ` +
+    `the browser blocks silently with no error on the API's own terminal. Check both: ` +
+    `NEXT_PUBLIC_API_BASE_URL in apps/scanner-portal/.env.local, and CORS_ALLOWED_ORIGINS in ` +
+    `services/api/.env (add this page's origin, e.g. http://${pageHostname}:3000, and restart the ` +
+    `API). See docs/LOCAL_DEVELOPMENT.md "Testing on a physical device".`
   );
 }
 
@@ -90,8 +117,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     if (process.env.NODE_ENV !== 'production') {
       console.error(`[Sampark scanner] Request to ${url} failed before reaching the server.`, err);
       if (typeof window !== 'undefined') {
-        const hint = unreachableApiHint(API_BASE_URL, window.location.hostname);
-        if (hint) console.warn(`[Sampark scanner] ${hint}`);
+        console.warn(`[Sampark scanner] ${unreachableApiHint(API_BASE_URL, window.location.hostname)}`);
       }
     }
     throw new ApiError(0, 'Could not reach the Sampark API');
