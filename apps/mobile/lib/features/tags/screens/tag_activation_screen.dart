@@ -19,6 +19,17 @@ import 'package:nfc_manager/nfc_manager.dart';
 import '../../../core/i18n/locale_provider.dart';
 import '../providers/tags_controller.dart';
 
+/// Maps a MobileScanner failure to a user-facing message. Pulled out as a pure function (no
+/// BuildContext/camera involved) so the mapping itself — in particular, that a denied camera
+/// permission gets its own actionable copy instead of the generic error text — is unit-testable
+/// without a device/camera or the Flutter test bindings.
+String scannerErrorMessage(AppLocale locale, MobileScannerErrorCode code) {
+  if (code == MobileScannerErrorCode.permissionDenied) {
+    return translate(locale, 'cameraPermissionDenied');
+  }
+  return translate(locale, 'errorGeneric');
+}
+
 class TagActivationScreen extends ConsumerStatefulWidget {
   const TagActivationScreen({required this.vehicleId, super.key});
   final String vehicleId;
@@ -104,7 +115,26 @@ class _TagActivationScreenState extends ConsumerState<TagActivationScreen> {
                 height: 260,
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: MobileScanner(onDetect: _onQrDetect),
+                  // errorBuilder turns a camera failure (most commonly the user having denied
+                  // the permission) into a readable, localized message instead of leaving
+                  // mobile_scanner's own default error UI in its place — this is the recoverable
+                  // half of camera access failing; a *missing* NSCameraUsageDescription/
+                  // NFCReaderUsageDescription entry in ios/Runner/Info.plist is not recoverable
+                  // from Dart at all (iOS terminates the process before this widget ever gets a
+                  // chance to build), which is a native project configuration issue, not
+                  // something this screen's code can catch — see apps/mobile/README.md.
+                  child: MobileScanner(
+                    onDetect: _onQrDetect,
+                    errorBuilder: (context, error, child) => Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                          scannerErrorMessage(ref.read(localeProvider), error.errorCode),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),

@@ -54,6 +54,10 @@ const Map<String, Map<AppLocale, String>> _dictionary = {
   'deleteAccount': {AppLocale.en: 'Delete my account', AppLocale.ne: 'मेरो खाता मेटाउनुहोस्'},
   'exportMyData': {AppLocale.en: 'Download my data', AppLocale.ne: 'मेरो डाटा डाउनलोड गर्नुहोस्'},
   'errorGeneric': {AppLocale.en: 'Something went wrong. Please try again.', AppLocale.ne: 'केही समस्या भयो। कृपया फेरि प्रयास गर्नुहोस्।'},
+  'cameraPermissionDenied': {
+    AppLocale.en: 'Camera access is off for Sampark. Enable it in your device Settings to scan a tag.',
+    AppLocale.ne: 'सम्पर्कका लागि क्यामेरा पहुँच बन्द छ। ट्याग स्क्यान गर्न आफ्नो डिभाइस सेटिङमा यसलाई सक्षम गर्नुहोस्।',
+  },
   'invalidPhone': {AppLocale.en: 'Enter a valid Nepali mobile number', AppLocale.ne: 'मान्य नेपाली मोबाइल नम्बर प्रविष्ट गर्नुहोस्'},
   'invalidCode': {AppLocale.en: 'Enter the 6-digit code', AppLocale.ne: '6-अंकको कोड प्रविष्ट गर्नुहोस्'},
   'biometricLock': {AppLocale.en: 'Unlock with biometrics', AppLocale.ne: 'बायोमेट्रिक्सको साथ अनलक गर्नुहोस्'},

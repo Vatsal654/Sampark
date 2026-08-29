@@ -27,16 +27,45 @@ flutter pub get
 ```
 
 Then add the platform permissions Sampark needs (camera for QR scanning,
-NFC for tag taps, biometrics for app lock):
+NFC for tag taps, biometrics for app lock). **Skipping this step is not
+a "degraded" mode — it's a hard native-OS crash**: opening Vehicles →
+Activate Tag mounts a camera preview (`mobile_scanner`) immediately, and
+if the platform project doesn't declare why the app wants the camera,
+the OS kills the process the instant it tries to access it, before any
+Dart code — including a `try`/`catch` — gets a chance to run. That's
+what "the app hangs/crashes when the scanner screen opens" almost always
+is; no code change in `lib/` can work around a missing platform
+declaration.
 
-- **Android** (`android/app/src/main/AndroidManifest.xml`): add
-  `<uses-permission android:name="android.permission.CAMERA"/>`,
-  `<uses-permission android:name="android.permission.NFC"/>`, and
-  `<uses-permission android:name="android.permission.USE_BIOMETRIC"/>`.
-- **iOS** (`ios/Runner/Info.plist`): add `NSCameraUsageDescription`,
-  `NFCReaderUsageDescription`, and `NSFaceIDUsageDescription` with
-  plain-language justifications (product spec §10's plain-language
-  privacy copy requirement applies here too).
+- **Android** (`android/app/src/main/AndroidManifest.xml`, inside the
+  root `<manifest>` element, as a sibling of `<application>`): add
+  ```xml
+  <uses-permission android:name="android.permission.CAMERA"/>
+  <uses-permission android:name="android.permission.NFC"/>
+  <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+  ```
+- **iOS** (`ios/Runner/Info.plist`, inside the root `<dict>`): add
+  ```xml
+  <key>NSCameraUsageDescription</key>
+  <string>Sampark uses the camera to scan a vehicle tag's QR code.</string>
+  <key>NFCReaderUsageDescription</key>
+  <string>Sampark uses NFC to read a vehicle tag when you tap it.</string>
+  <key>NSFaceIDUsageDescription</key>
+  <string>Sampark uses Face ID to unlock the app.</string>
+  ```
+  The wording matters less than the keys being present at all — iOS
+  crashes on a missing key regardless of what the string says (product
+  spec §10's plain-language privacy copy requirement still applies to
+  what you put in the string). NFC additionally needs the "Near Field
+  Communication Tag Reading" capability added in Xcode (Runner target →
+  Signing & Capabilities → +Capability) — this writes the matching
+  `com.apple.developer.nfc.readersession.formats` entitlement for you;
+  the `NFCReaderUsageDescription` string above only covers the Info.plist
+  half.
+
+  After editing `Info.plist`, do a full stop and `flutter run` again
+  (not hot reload/restart) — Info.plist is only read when the app
+  process starts.
 
 ## Running
 
@@ -121,7 +150,15 @@ flutter test
 ```
 
 `test/` covers the phone-normalization and tag-ID-extraction pure logic,
-plus a widget test for the phone entry screen. Wider integration tests for
-the full onboarding → activation → alerts flow are the natural next
-addition once the platform folders above are generated and a device/
-emulator is available to run them against.
+plus widget tests for the phone entry screen and the home shell (the
+`HomeShell` test in particular pumps the real widget with fake
+providers to catch Hero-tag / FAB-in-`IndexedStack` collisions like the
+one fixed in commit `866df28`). `scanner_error_message_test.dart` covers
+the tag activation screen's camera-permission-denied vs. generic-error
+message mapping as a pure function — it cannot cover the native-crash
+case above (missing `NSCameraUsageDescription`), since that terminates
+the process before Dart runs at all; the platform setup step is the only
+real regression coverage for that one. Wider integration tests for the
+full onboarding → activation → alerts flow are the natural next addition
+once the platform folders above are generated and a device/emulator is
+available to run them against.
