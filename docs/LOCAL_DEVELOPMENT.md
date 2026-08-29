@@ -109,19 +109,37 @@ more settings need to point at your LAN IP too:
    easy to misread as "the app isn't calling the API at all":** without
    it, the phone's browser blocks the request via CORS — silently, with
    no error on the API's own terminal (there's no access log for a
-   rejected preflight), and the app can only show a generic failure
-   screen, because a CORS rejection and a genuinely unreachable API
+   rejected preflight). A CORS rejection and a genuinely unreachable API
    produce the exact same `TypeError: Failed to fetch` in JavaScript, by
-   browser design. If you've set `NEXT_PUBLIC_API_BASE_URL` correctly and
-   the API terminal shows nothing when you scan, check this setting
-   before anything else.
+   browser design, so the scanner portal shows both as "Unable to
+   connect to Sampark" with a retry button (see "Error states" below) —
+   it cannot tell you which one it was, only that the fetch never
+   completed. If you've set `NEXT_PUBLIC_API_BASE_URL` correctly and the
+   API terminal shows nothing when you scan, check this setting before
+   anything else.
 
-If the page loads but the tag lookup silently fails, open Safari's Web
-Inspector (connect the phone to a Mac via cable, enable it under
-Settings → Safari → Advanced → Web Inspector, then Develop menu on the
-Mac) or your desktop browser's console when testing the same URL there —
-`lib/api-client.ts` logs the exact URL it tried and a console warning
-naming which of the two settings above to check.
+### Error states, and reading them without a devtools console
+
+The tag lookup classifies a failure instead of showing "Tag not found"
+for everything: a real 404 (an invalid/expired link) says so; a 401/403
+shows a distinct "can't be used right now" state; a 5xx says "Sampark is
+temporarily unavailable"; a network/CORS failure says "Unable to connect
+to Sampark" and offers a retry button; a URL that doesn't even parse into
+an opaqueId + signature shows "Invalid link" without ever calling the
+API. See `lib/api-client.ts`'s `ApiErrorKind` and
+`components/TagScanScreen.tsx`'s `ERROR_COPY` map.
+
+Every screen also renders a **dev-only diagnostics panel** directly on
+the page (never in a production build — see
+`components/DevDiagnostics.tsx`) showing the configured API base URL,
+the exact request URL, whether the lookup started/the fetch was
+attempted, the response status, any fetch exception message, and the
+final classification. This is meant to make a physical-device failure
+observable by just looking at the phone's screen, without needing
+Safari's Web Inspector (Settings → Safari → Advanced → Web Inspector,
+then a cabled Mac's Develop menu) at all — though that remains available
+too, and `lib/api-client.ts` also logs the same information plus a
+console warning naming which of the two settings above to check.
 
 ## Test commands
 

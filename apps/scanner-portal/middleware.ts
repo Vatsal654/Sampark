@@ -35,20 +35,29 @@
  * Related: next.config.js, docs/SECURITY.md "Transport & headers".
  */
 import { NextResponse, type NextRequest } from 'next/server';
+import { DEFAULT_API_BASE_URL } from './lib/api-client';
 
 /**
  * CSP's connect-src matches by origin (scheme+host+port); a source with a path (e.g.
  * "http://192.168.1.8:3001/v1") is treated as an exact-path allowance, not a prefix, so it does
  * NOT match a request to ".../v1/public/tags/...". Strip NEXT_PUBLIC_API_BASE_URL down to just
  * its origin here so the actual API calls (which always include the "/v1/..." path) are allowed.
+ * Falls back to DEFAULT_API_BASE_URL — the exact same fallback lib/api-client.ts's
+ * resolveApiBaseUrl() uses — when the env var is unset, rather than an empty string: a real bug
+ * this caught in testing was NEXT_PUBLIC_API_BASE_URL being unset entirely (no .env.local at
+ * all), where the client bundle still falls back to a concrete default (http://localhost:3001)
+ * and genuinely tries to fetch it, but this function used to return '' for the same "unset"
+ * case — producing a CSP with no API origin allowed at all, and the browser blocking the
+ * client's own default-configuration fetch attempt with a CSP violation on `connect-src`. The
+ * client and the CSP must never resolve "unset" to two different answers.
  * Pure (takes the raw value as an argument) so it's unit-testable without touching process.env.
  */
 export function apiOriginForCsp(rawApiBaseUrl: string | undefined): string {
-  if (!rawApiBaseUrl) return '';
+  const raw = rawApiBaseUrl?.trim();
   try {
-    return new URL(rawApiBaseUrl).origin;
+    return new URL(raw && raw.length > 0 ? raw : DEFAULT_API_BASE_URL).origin;
   } catch {
-    return '';
+    return new URL(DEFAULT_API_BASE_URL).origin;
   }
 }
 

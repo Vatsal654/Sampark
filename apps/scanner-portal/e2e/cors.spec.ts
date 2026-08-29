@@ -8,7 +8,13 @@
  * access log — NestJS has none by default), and the resulting
  * `TypeError: Failed to fetch` is indistinguishable, to application
  * code, from the API being genuinely unreachable — which is exactly why
- * this was so hard to diagnose from logs alone. Run via
+ * this was so hard to diagnose from logs alone. As of the network_error
+ * classification work (lib/api-client.ts's ApiErrorKind), this correctly
+ * renders the distinct "Unable to connect to Sampark" state with a retry
+ * button rather than the generic "Tag not found" it used to collapse
+ * into — this test asserts that classification is correct for a real
+ * CORS rejection specifically, not just for a mocked network failure.
+ * Run via
  * `npm run test:e2e:cors`, which starts a real `next dev` server AND a
  * real (non-mocked) small HTTP server standing in for the API's CORS
  * decision — see mock-cors-server.js and playwright.cors.config.ts for
@@ -29,9 +35,13 @@ test('a page origin missing from CORS_ALLOWED_ORIGINS is blocked exactly like th
   await page.goto(`http://127.0.0.1:3000/t/${SLUG}`);
   await page.waitForTimeout(3000);
 
-  // The exact user-visible symptom reported: a generic failure screen, not a stuck spinner and
-  // not a distinct "CORS error" message (the browser never gives the app that detail).
-  await expect(page.getByText('Tag not found')).toBeVisible();
+  // The correctly-classified user-visible outcome: a network_error, not a stuck spinner and not
+  // the generic "Tag not found" (a real 404) — the browser never tells the app it was CORS
+  // specifically (no distinct "CORS error" message is possible), but "we couldn't connect" is
+  // still the accurate category, and it comes with a retry button.
+  await expect(page.getByText('Unable to connect to Sampark')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
+  await expect(page.getByText('Tag not found', { exact: true })).not.toBeVisible();
 
   const allConsoleText = consoleMsgs.join('\n');
   expect(allConsoleText).toMatch(/CORS/i);

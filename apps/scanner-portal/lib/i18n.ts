@@ -54,6 +54,27 @@ export const DICTIONARY = {
   tagPausedBody: { en: 'The owner has paused alerts for now, for example while parking with an attendant.', ne: 'मालिकले अहिलेको लागि सतर्कता रोक्नुभएको छ।' },
   tagUnavailableTitle: { en: 'This tag is unavailable', ne: 'यो ट्याग उपलब्ध छैन' },
   tagUnavailableBody: { en: 'This tag has been revoked, reported lost, or replaced by its owner.', ne: 'यो ट्याग रद्द, हराएको रिपोर्ट, वा प्रतिस्थापन गरिएको छ।' },
+  invalidLinkTitle: { en: 'Invalid link', ne: 'अमान्य लिंक' },
+  invalidLinkBody: {
+    en: 'This link is not shaped like a real Sampark tag link. Please rescan the physical tag.',
+    ne: 'यो लिंक वास्तविक सम्पर्क ट्याग लिंक जस्तो देखिँदैन। कृपया भौतिक ट्याग पुन: स्क्यान गर्नुहोस्।',
+  },
+  unauthorizedTitle: { en: "This link can't be used right now", ne: 'यो लिंक अहिले प्रयोग गर्न सकिँदैन' },
+  unauthorizedBody: {
+    en: 'Sampark rejected this request. Please rescan the physical tag, or try again later.',
+    ne: 'सम्पर्कले यो अनुरोध अस्वीकार गर्यो। कृपया भौतिक ट्याग पुन: स्क्यान गर्नुहोस्, वा पछि फेरि प्रयास गर्नुहोस्।',
+  },
+  serverErrorTitle: { en: 'Sampark is temporarily unavailable', ne: 'सम्पर्क अस्थायी रूपमा उपलब्ध छैन' },
+  serverErrorBody: {
+    en: "Something went wrong on our end. Please try again in a moment — this isn't a problem with your tag.",
+    ne: 'हाम्रो तर्फबाट केही समस्या भयो। कृपया केही क्षणमा फेरि प्रयास गर्नुहोस् — यो तपाईंको ट्यागको समस्या होइन।',
+  },
+  networkErrorTitle: { en: 'Unable to connect to Sampark', ne: 'सम्पर्कमा जडान गर्न असमर्थ' },
+  networkErrorBody: {
+    en: "Your device couldn't reach Sampark's servers. Check your internet connection and try again.",
+    ne: 'तपाईंको यन्त्रले सम्पर्कको सर्भरमा पुग्न सकेन। कृपया आफ्नो इन्टरनेट जडान जाँच गरेर फेरि प्रयास गर्नुहोस्।',
+  },
+  retry: { en: 'Try again', ne: 'फेरि प्रयास गर्नुहोस्' },
   emergencyWarning: {
     en: 'For immediate danger to life, contact local emergency services first.',
     ne: 'जीवनलाई तत्काल खतरा भएमा, पहिले स्थानीय आपतकालीन सेवाहरूलाई सम्पर्क गर्नुहोस्।',

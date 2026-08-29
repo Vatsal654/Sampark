@@ -89,3 +89,31 @@ test.describe('next dev — client hydration actually completes', () => {
     expect(url.searchParams.get('sig')).toBe('4RqPYoP5k-ObuA3kTWXdbxPXm2pNVvqkyKmd-_vr35c');
   });
 });
+
+test.describe('next dev — on-page diagnostics (no devtools needed to observe a lookup failure)', () => {
+  test('the dev diagnostics panel is visible and reports the real API base URL and request URL', async ({ page }) => {
+    await page.route('**/v1/public/tags/**', (route) =>
+      route.fulfill({
+        json: { opaqueId: 'deadbeefdeadbeefdeadbeefdeadbeef', status: 'issued', vehicleDisplayLabel: null, vehicleCategory: null, callbackEnabled: false, emergencyEnabled: false },
+      }),
+    );
+    await page.goto(`/t/${SLUG}`);
+
+    const panel = page.getByTestId('dev-diagnostics');
+    await expect(panel).toBeVisible();
+    const panelText = await panel.innerText();
+    expect(panelText).toContain('192.168.1.8:3001'); // this dev server's configured NEXT_PUBLIC_API_BASE_URL
+    expect(panelText).toContain('deadbeefdeadbeefdeadbeefdeadbeef');
+    expect(panelText).toContain('success');
+  });
+
+  test('the diagnostics panel reports the network_error classification and the fetch exception message', async ({ page }) => {
+    await page.route('**/v1/public/tags/**', (route) => route.abort('connectionrefused'));
+    await page.goto(`/t/${SLUG}`);
+    await expect(page.getByText('Unable to connect to Sampark')).toBeVisible();
+
+    const panelText = await page.getByTestId('dev-diagnostics').innerText();
+    expect(panelText).toContain('network_error');
+    expect(panelText).toContain('Fetch exception');
+  });
+});

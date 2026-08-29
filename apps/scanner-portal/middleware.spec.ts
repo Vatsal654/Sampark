@@ -9,12 +9,17 @@ describe('apiOriginForCsp — connect-src must be an origin, not a path', () => 
     expect(apiOriginForCsp('http://localhost:3001/v1')).toBe('http://localhost:3001');
   });
 
-  it('returns an empty string when unset, rather than throwing', () => {
-    expect(apiOriginForCsp(undefined)).toBe('');
+  it('falls back to the default origin when unset — never an empty string, which would produce a CSP that blocks the client\'s own default fetch target', () => {
+    expect(apiOriginForCsp(undefined)).toBe('http://localhost:3001');
   });
 
-  it('returns an empty string for a malformed value, rather than throwing', () => {
-    expect(apiOriginForCsp('not-a-url')).toBe('');
+  it('falls back to the default origin for a malformed value, rather than throwing or returning empty', () => {
+    expect(apiOriginForCsp('not-a-url')).toBe('http://localhost:3001');
+  });
+
+  it('falls back to the default origin for an empty or whitespace-only value', () => {
+    expect(apiOriginForCsp('')).toBe('http://localhost:3001');
+    expect(apiOriginForCsp('   ')).toBe('http://localhost:3001');
   });
 
   it('preserves a deployed HTTPS origin', () => {

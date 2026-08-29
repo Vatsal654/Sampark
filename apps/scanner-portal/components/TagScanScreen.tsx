@@ -8,16 +8,25 @@
  * API returned (packages/api-contracts/src/public.ts) — this component
  * has no code path that could render owner PII because none is ever
  * fetched.
- * Related: lib/api-client.ts, components/{Alert,Emergency,Callback,Report}Flow.tsx.
+ * Responsibilities: Classifies a failed lookup by ApiErrorKind rather
+ * than collapsing every failure into "tag not found" — a 404 (an
+ * invalid/expired link, routine and expected), a 401/403, a 5xx, and a
+ * network/CORS failure (the browser reports these last two identically,
+ * by design) are meaningfully different situations and get different
+ * copy; a network failure additionally gets a retry button, since it's
+ * the one case actually worth re-attempting without a fresh scan.
+ * Related: lib/api-client.ts, components/DevDiagnostics.tsx,
+ * components/{Alert,Emergency,Callback,Report}Flow.tsx.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useLocale } from './LocaleProvider';
 import { LanguageToggle } from './LanguageToggle';
 import { AlertFlow } from './AlertFlow';
 import { EmergencyFlow } from './EmergencyFlow';
 import { CallbackFlow } from './CallbackFlow';
 import { ReportFlow } from './ReportFlow';
-import { getTag, ApiError } from '../lib/api-client';
+import { DevDiagnostics, type LookupDiagnostics } from './DevDiagnostics';
+import { getTag, buildPublicTagPath, ApiError, API_BASE_URL, type ApiErrorKind } from '../lib/api-client';
 import type { TranslationKey } from '../lib/i18n';
 
 type View = 'menu' | 'alert' | 'alert-sent' | 'emergency' | 'emergency-sent' | 'callback' | 'report' | 'report-sent';
@@ -30,56 +39,115 @@ interface TagView {
   emergencyEnabled: boolean;
 }
 
+type LookupState = { phase: 'loading' } | { phase: 'success'; tag: TagView } | { phase: 'error'; kind: ApiErrorKind };
+
+const ERROR_COPY: Record<ApiErrorKind, { titleKey: TranslationKey; bodyKey: TranslationKey }> = {
+  not_found: { titleKey: 'tagNotFoundTitle', bodyKey: 'tagNotFoundBody' },
+  unauthorized: { titleKey: 'unauthorizedTitle', bodyKey: 'unauthorizedBody' },
+  server_error: { titleKey: 'serverErrorTitle', bodyKey: 'serverErrorBody' },
+  network_error: { titleKey: 'networkErrorTitle', bodyKey: 'networkErrorBody' },
+};
+
 export function TagScanScreen({ opaqueId, signature }: { opaqueId: string; signature: string }) {
   const { t } = useLocale();
-  const [tag, setTag] = useState<TagView | null | 'not-found'>(null);
+  const [state, setState] = useState<LookupState>({ phase: 'loading' });
   const [view, setView] = useState<View>('menu');
+  const [retryCount, setRetryCount] = useState(0);
+  const [diagnostics, setDiagnostics] = useState<LookupDiagnostics>(() => ({
+    apiBaseUrl: API_BASE_URL,
+    requestUrl: `${API_BASE_URL}${buildPublicTagPath(opaqueId, signature)}`,
+    opaqueId,
+    signature,
+    lookupStarted: false,
+    fetchAttempted: false,
+    responseStatus: null,
+    fetchException: null,
+    classification: null,
+  }));
 
   useEffect(() => {
     let cancelled = false;
+    setState({ phase: 'loading' });
+    setDiagnostics((prev) => ({
+      ...prev,
+      requestUrl: `${API_BASE_URL}${buildPublicTagPath(opaqueId, signature)}`,
+      lookupStarted: true,
+      fetchAttempted: true,
+      responseStatus: null,
+      fetchException: null,
+      classification: null,
+    }));
+
     getTag(opaqueId, signature)
       .then((result) => {
-        if (!cancelled) setTag(result);
-      })
-      .catch((err) => {
         if (cancelled) return;
-        if (err instanceof ApiError && err.status === 404) setTag('not-found');
-        else setTag('not-found');
+        setState({ phase: 'success', tag: result });
+        setDiagnostics((prev) => ({ ...prev, responseStatus: 200, classification: 'success' }));
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        if (err instanceof ApiError) {
+          setState({ phase: 'error', kind: err.kind });
+          setDiagnostics((prev) => ({
+            ...prev,
+            responseStatus: err.status || null,
+            fetchException: err.kind === 'network_error' ? err.message : null,
+            classification: err.kind,
+          }));
+        } else {
+          // Not an ApiError at all — a genuine bug elsewhere (e.g. a thrown error before fetch
+          // was even reached). Never silently reuse "not found" for something unexpected.
+          const message = err instanceof Error ? err.message : String(err);
+          setState({ phase: 'error', kind: 'server_error' });
+          setDiagnostics((prev) => ({ ...prev, fetchException: message, classification: 'unexpected_exception' }));
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [opaqueId, signature]);
+  }, [opaqueId, signature, retryCount]);
 
-  if (tag === null) {
+  const diagnosticsPanel = <DevDiagnostics data={diagnostics} />;
+
+  if (state.phase === 'loading') {
     return (
       <main>
         <p>{t('loading')}</p>
+        {diagnosticsPanel}
       </main>
     );
   }
 
-  if (tag === 'not-found') {
+  if (state.phase === 'error') {
+    const { titleKey, bodyKey } = ERROR_COPY[state.kind];
     return (
       <main>
         <div className="card">
-          <h1>{t('tagNotFoundTitle')}</h1>
-          <p>{t('tagNotFoundBody')}</p>
+          <h1>{t(titleKey)}</h1>
+          <p>{t(bodyKey)}</p>
         </div>
+        {state.kind === 'network_error' && (
+          <button type="button" className="button button-primary" onClick={() => setRetryCount((n) => n + 1)}>
+            {t('retry')}
+          </button>
+        )}
+        {diagnosticsPanel}
       </main>
     );
   }
 
+  const tag = state.tag;
+
   if (tag.status === 'manufactured' || tag.status === 'issued' || tag.status === 'pending_activation') {
     return (
-      <StatusScreen titleKey="tagUnactivatedTitle" bodyKey="tagUnactivatedBody" opaqueId={opaqueId} signature={signature} />
+      <StatusScreen titleKey="tagUnactivatedTitle" bodyKey="tagUnactivatedBody" opaqueId={opaqueId} signature={signature} diagnostics={diagnosticsPanel} />
     );
   }
   if (tag.status === 'paused') {
-    return <StatusScreen titleKey="tagPausedTitle" bodyKey="tagPausedBody" opaqueId={opaqueId} signature={signature} />;
+    return <StatusScreen titleKey="tagPausedTitle" bodyKey="tagPausedBody" opaqueId={opaqueId} signature={signature} diagnostics={diagnosticsPanel} />;
   }
   if (tag.status === 'revoked' || tag.status === 'reported_lost' || tag.status === 'replaced') {
-    return <StatusScreen titleKey="tagUnavailableTitle" bodyKey="tagUnavailableBody" opaqueId={opaqueId} signature={signature} />;
+    return <StatusScreen titleKey="tagUnavailableTitle" bodyKey="tagUnavailableBody" opaqueId={opaqueId} signature={signature} diagnostics={diagnosticsPanel} />;
   }
 
   return (
@@ -134,6 +202,7 @@ export function TagScanScreen({ opaqueId, signature }: { opaqueId: string; signa
         <ReportFlow opaqueId={opaqueId} signature={signature} onDone={() => setView('report-sent')} onCancel={() => setView('menu')} />
       )}
       {view === 'report-sent' && <SentScreen titleKey="reportSent" bodyKey="reportSent" onBack={() => setView('menu')} />}
+      {diagnosticsPanel}
     </main>
   );
 }
@@ -143,11 +212,13 @@ function StatusScreen({
   bodyKey,
   opaqueId,
   signature,
+  diagnostics,
 }: {
   titleKey: TranslationKey;
   bodyKey: TranslationKey;
   opaqueId: string;
   signature: string;
+  diagnostics?: ReactNode;
 }) {
   const { t } = useLocale();
   const [reporting, setReporting] = useState(false);
@@ -165,6 +236,7 @@ function StatusScreen({
       ) : (
         <ReportFlow opaqueId={opaqueId} signature={signature} onDone={() => setReporting(false)} onCancel={() => setReporting(false)} />
       )}
+      {diagnostics}
     </main>
   );
 }

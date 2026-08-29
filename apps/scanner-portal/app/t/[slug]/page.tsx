@@ -9,6 +9,7 @@
  * Related: components/TagScanScreen.tsx.
  */
 import { TagScanScreen } from '../../../components/TagScanScreen';
+import { InvalidLinkScreen } from '../../../components/InvalidLinkScreen';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,14 +22,7 @@ function parseSlug(slug: string): { opaqueId: string; signature: string } | null
 export default function TagPage({ params }: { params: { slug: string } }) {
   const parsed = parseSlug(decodeURIComponent(params.slug));
   if (!parsed) {
-    return (
-      <main>
-        <div className="card">
-          <h1>Tag not found</h1>
-          <p>This link is invalid or has expired.</p>
-        </div>
-      </main>
-    );
+    return <InvalidLinkScreen />;
   }
   return <TagScanScreen opaqueId={parsed.opaqueId} signature={parsed.signature} />;
 }

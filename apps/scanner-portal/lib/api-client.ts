@@ -19,7 +19,9 @@
  * value. See docs/LOCAL_DEVELOPMENT.md "Testing on a physical device".
  * Related: docs/API.md, services/api public-tag module.
  */
-const DEFAULT_API_BASE_URL = 'http://localhost:3001/v1';
+/** Also imported by middleware.ts, so the CSP's connect-src and the client's actual fetch target
+ * can never silently disagree about what "unset" resolves to — see that file's header comment. */
+export const DEFAULT_API_BASE_URL = 'http://localhost:3001/v1';
 
 /**
  * Pure so it's unit-testable without mutating process.env. Takes the already-read value as a
@@ -36,7 +38,9 @@ export function resolveApiBaseUrl(configuredValue: string | undefined): string {
   return raw && raw.length > 0 ? raw : DEFAULT_API_BASE_URL;
 }
 
-const API_BASE_URL = resolveApiBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL);
+/** Exported (read-only) purely for on-page diagnostics — see components/DevDiagnostics.tsx —
+ * never mutated after this module loads. */
+export const API_BASE_URL = resolveApiBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL);
 
 /**
  * Returns a developer-facing troubleshooting hint for a fetch that has already failed (this is
@@ -91,13 +95,38 @@ export function unreachableApiHint(apiBaseUrl: string, pageHostname: string): st
   );
 }
 
+/**
+ * A coarse classification of why a request failed, distinct from the raw HTTP status — this is
+ * what UI code should branch on, never a raw `status` number, so that "the server said no" (404,
+ * a routine/expected outcome for an invalid or expired link), "the server is broken" (5xx), and
+ * "the request never reached any server at all" (network failure, CORS rejection, DNS failure —
+ * all reported identically by fetch(), by browser design) are never silently collapsed into one
+ * generic message. Collapsing them is exactly what made a real, live bug (a CORS_ALLOWED_ORIGINS
+ * gap) look identical to a routine "this link is invalid" outcome.
+ */
+export type ApiErrorKind = 'not_found' | 'unauthorized' | 'server_error' | 'network_error';
+
+function classifyStatus(status: number): ApiErrorKind {
+  if (status === 404) return 'not_found';
+  if (status === 401 || status === 403) return 'unauthorized';
+  return 'server_error';
+}
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
     message: string,
+    public readonly kind: ApiErrorKind,
   ) {
     super(message);
   }
+}
+
+/** Builds the exact path (relative to API_BASE_URL) the public tag lookup calls — a single
+ * source of truth so a diagnostics display can show precisely the URL a request actually used,
+ * without duplicating the query-encoding logic. */
+export function buildPublicTagPath(opaqueId: string, signature: string): string {
+  return `/public/tags/${opaqueId}?sig=${encodeURIComponent(signature)}`;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -111,16 +140,19 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     });
   } catch (err) {
     // The request never reached any server — most commonly a physical device trying to reach
-    // "localhost" (itself). Logged only in development; never includes response contents, since
-    // there is none here. The opaqueId/signature in `url` are already visible in this page's own
-    // address bar, so logging them to this browser's own console discloses nothing new.
+    // "localhost" (itself), or a CORS rejection (which fetch() reports identically to a genuine
+    // network failure, by browser design — see unreachableApiHint()). Logged only in development;
+    // never includes response contents, since there is none here. The opaqueId/signature in `url`
+    // are already visible in this page's own address bar, so logging them to this browser's own
+    // console discloses nothing new.
     if (process.env.NODE_ENV !== 'production') {
       console.error(`[Sampark scanner] Request to ${url} failed before reaching the server.`, err);
       if (typeof window !== 'undefined') {
         console.warn(`[Sampark scanner] ${unreachableApiHint(API_BASE_URL, window.location.hostname)}`);
       }
     }
-    throw new ApiError(0, 'Could not reach the Sampark API');
+    const message = err instanceof Error ? err.message : 'Network request failed';
+    throw new ApiError(0, message, 'network_error');
   }
   if (!response.ok) {
     let message = `Request failed with status ${response.status}`;
@@ -136,9 +168,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     if (process.env.NODE_ENV !== 'production' && response.status !== 404) {
       console.error(`[Sampark scanner] ${url} -> ${response.status}: ${message}`);
     }
-    throw new ApiError(response.status, message);
+    throw new ApiError(response.status, message, classifyStatus(response.status));
   }
-  return (await response.json()) as T;
+  try {
+    return (await response.json()) as T;
+  } catch (err) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(`[Sampark scanner] ${url} returned a 2xx with an unparseable body.`, err);
+    }
+    throw new ApiError(response.status, 'Response body was not valid JSON', 'server_error');
+  }
 }
 
 export function getTag(opaqueId: string, signature: string) {
@@ -149,7 +188,7 @@ export function getTag(opaqueId: string, signature: string) {
     vehicleCategory: string | null;
     callbackEnabled: boolean;
     emergencyEnabled: boolean;
-  }>(`/public/tags/${opaqueId}?sig=${encodeURIComponent(signature)}`);
+  }>(buildPublicTagPath(opaqueId, signature));
 }
 
 export function submitAlert(
