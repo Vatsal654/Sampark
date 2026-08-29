@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/i18n/locale_provider.dart';
+import '../../../core/network/api_error_logger.dart';
 import '../providers/auth_controller.dart';
 
 class OtpVerifyScreen extends ConsumerStatefulWidget {
@@ -42,7 +43,8 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
       await ref.read(authControllerProvider.notifier).verifyOtp(widget.phoneE164, _controller.text);
       // On success, the app's top-level router redirect (driven by authControllerProvider's
       // state) takes the user to the home shell — no explicit navigation needed here.
-    } catch (_) {
+    } catch (error, stackTrace) {
+      logApiError('verifyOtp', error, stackTrace);
       if (mounted) setState(() => _error = translate(locale, 'errorGeneric'));
     } finally {
       if (mounted) setState(() => _submitting = false);

@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/i18n/locale_provider.dart';
+import '../../../core/network/api_error_logger.dart';
 import '../providers/auth_controller.dart';
 
 String? normalizeNepaliPhone(String raw) {
@@ -59,7 +60,11 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen> {
     try {
       await ref.read(authControllerProvider.notifier).requestOtp(normalized);
       if (mounted) context.push('/onboarding/verify', extra: normalized);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      // The user-facing message stays generic on purpose (no raw status codes/host errors shown
+      // in the UI) — the real cause goes to the console via logApiError so `flutter run` actually
+      // shows something useful instead of silently swallowing it.
+      logApiError('requestOtp', error, stackTrace);
       if (mounted) setState(() => _error = translate(ref.read(localeProvider), 'errorGeneric'));
     } finally {
       if (mounted) setState(() => _submitting = false);

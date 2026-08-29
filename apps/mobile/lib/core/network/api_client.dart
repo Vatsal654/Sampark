@@ -38,7 +38,14 @@ class ApiClient {
         onError: (error, handler) async {
           final isUnauthorized = error.response?.statusCode == 401;
           final alreadyRetried = error.requestOptions.extra['retried'] == true;
-          if (isUnauthorized && !alreadyRetried) {
+          // Only requests that actually carried an access token (see onRequest above) can mean
+          // "the token expired" on a 401. A 401 from an unauthenticated call — e.g. /auth/otp/verify
+          // rejecting a wrong code — is a normal business response, not a session expiry: treating
+          // it as one used to discard the real error (message like "Invalid or expired code") and
+          // replace it with a misleading ForcedLogoutException, which is exactly what made the OTP
+          // screens' error handling impossible to diagnose.
+          final wasAuthenticatedRequest = error.requestOptions.headers['Authorization'] != null;
+          if (isUnauthorized && wasAuthenticatedRequest && !alreadyRetried) {
             final refreshed = await _tryRefresh();
             if (refreshed) {
               final retryOptions = error.requestOptions;
