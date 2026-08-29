@@ -130,6 +130,14 @@ const Map<String, Map<AppLocale, String>> _dictionary = {
   'deleteAccount': {AppLocale.en: 'Delete my account', AppLocale.ne: 'मेरो खाता मेटाउनुहोस्'},
   'exportMyData': {AppLocale.en: 'Download my data', AppLocale.ne: 'मेरो डाटा डाउनलोड गर्नुहोस्'},
   'errorGeneric': {AppLocale.en: 'Something went wrong. Please try again.', AppLocale.ne: 'केही समस्या भयो। कृपया फेरि प्रयास गर्नुहोस्।'},
+  'errorNetwork': {
+    AppLocale.en: "Couldn't reach Sampark. Check your connection and try again.",
+    AppLocale.ne: 'सम्पर्कमा पुग्न सकिएन। आफ्नो जडान जाँच गरेर फेरि प्रयास गर्नुहोस्।',
+  },
+  'errorSessionExpired': {
+    AppLocale.en: 'Your session expired. Please sign in again.',
+    AppLocale.ne: 'तपाईंको सत्र समाप्त भयो। कृपया फेरि साइन इन गर्नुहोस्।',
+  },
   'cameraPermissionDenied': {
     AppLocale.en: 'Camera access is off for Sampark. Enable it in your device Settings to scan a tag.',
     AppLocale.ne: 'सम्पर्कका लागि क्यामेरा पहुँच बन्द छ। ट्याग स्क्यान गर्न आफ्नो डिभाइस सेटिङमा यसलाई सक्षम गर्नुहोस्।',

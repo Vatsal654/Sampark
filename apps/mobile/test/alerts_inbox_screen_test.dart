@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,19 +13,24 @@ import 'package:sampark/features/alerts/screens/alerts_inbox_screen.dart';
 /// AlertsController — so a widget test exercising this double is exercising the same "never
 /// optimistic, UI only reflects a real post-mutation refetch" contract the real controller makes,
 /// not a shortcut around it. The `*ShouldFail` flags simulate a rejected/unreachable backend
-/// without needing a real Dio/HTTP dependency.
+/// without needing a real Dio/HTTP dependency; `unarchiveError`, when set, is thrown instead of
+/// the generic Exception — used to simulate a real DioException (e.g. a 403 from another owner's
+/// token) so alerts_inbox_screen.dart's classification/diagnostics logic is actually exercised
+/// against the same error shape the real ApiClient produces, not just a bare Exception.
 class _FakeAlertsController extends AlertsController {
   _FakeAlertsController(
     List<AlertEvent> seed, {
     this.acknowledgeShouldFail = false,
     this.archiveShouldFail = false,
     this.unarchiveShouldFail = false,
+    this.unarchiveError,
   }) : _alerts = seed;
 
   List<AlertEvent> _alerts;
   bool acknowledgeShouldFail;
   bool archiveShouldFail;
   bool unarchiveShouldFail;
+  Object? unarchiveError;
 
   @override
   Future<List<AlertEvent>> build() async => _alerts;
@@ -64,6 +70,7 @@ class _FakeAlertsController extends AlertsController {
 
   @override
   Future<void> unarchive(String alertId) async {
+    if (unarchiveError != null) throw unarchiveError!;
     if (unarchiveShouldFail) throw Exception('simulated network failure');
     _alerts = [
       for (final a in _alerts) if (a.id == alertId) _copyWith(a, archivedAt: null) else a,
@@ -72,6 +79,19 @@ class _FakeAlertsController extends AlertsController {
     await future;
   }
 }
+
+/// A DioException shaped like what the real ApiClient would throw for a 403 from
+/// POST /owner/alerts/:id/unarchive (another owner's token) — see
+/// AlertsService.unarchive()'s getOwned() check in services/api.
+DioException _forbiddenDioException(String path) => DioException(
+      requestOptions: RequestOptions(path: path, method: 'POST'),
+      response: Response(
+        requestOptions: RequestOptions(path: path, method: 'POST'),
+        statusCode: 403,
+        data: {'message': 'Not your alert'},
+      ),
+      type: DioExceptionType.badResponse,
+    );
 
 const _unset = Object();
 
@@ -261,6 +281,65 @@ void main() {
     expect(find.widgetWithText(TextButton, translate(AppLocale.en, 'unarchive')), findsOneWidget);
     // The alert was never actually unarchived — it must still carry the archived badge.
     expect(find.byKey(_archivedBadgeKey('alert-1')), findsOneWidget);
+  });
+
+  testWidgets('a 403 (e.g. another owner\'s token) is classified distinctly and shown in the dev diagnostics panel', (tester) async {
+    final controller = _FakeAlertsController(
+      [
+        AlertEvent(
+          id: 'alert-1',
+          category: 'blocking_access',
+          severity: 'normal',
+          note: null,
+          scannerLocationLabel: null,
+          scannerLocationExact: null,
+          createdAt: DateTime(2026, 1, 1),
+          acknowledgedAt: null,
+          archivedAt: DateTime(2026, 1, 1),
+          deliveries: const [],
+        ),
+      ],
+      unarchiveError: _forbiddenDioException('/owner/alerts/alert-1/unarchive'),
+    );
+    await _pumpScreen(tester, controller);
+    await _switchToArchivedTab(tester);
+
+    await tester.tap(find.widgetWithText(TextButton, translate(AppLocale.en, 'unarchive')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // Never left in Archived silently without any trace of what happened — this is the exact gap
+    // reported on the physical device: a bare "Something went wrong" with nothing to diagnose.
+    expect(find.byKey(_archivedBadgeKey('alert-1')), findsOneWidget);
+    final diagnostics = find.byKey(const Key('mutation-diagnostics-unarchive'));
+    expect(diagnostics, findsOneWidget);
+    final diagnosticsText = tester.widget<Column>(find.descendant(of: diagnostics, matching: find.byType(Column)));
+    final rendered = diagnosticsText.children.whereType<Text>().map((t) => t.data).join('\n');
+    expect(rendered, contains('classification: unauthorized'));
+    expect(rendered, contains('responseStatus: 403'));
+    expect(rendered, contains('/owner/alerts/alert-1/unarchive'));
+  });
+
+  testWidgets('archive → unarchive → archive works repeatedly, ending in Archived each time', (tester) async {
+    final controller = _FakeAlertsController([_seedAlert()]);
+    await _pumpScreen(tester, controller);
+
+    for (var cycle = 0; cycle < 2; cycle++) {
+      await tester.tap(find.widgetWithText(TextButton, translate(AppLocale.en, 'archive')));
+      await tester.pumpAndSettle();
+      expect(find.text('blocking access'), findsNothing); // gone from Active
+
+      await _switchToArchivedTab(tester);
+      expect(find.byKey(_archivedBadgeKey('alert-1')), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(TextButton, translate(AppLocale.en, 'unarchive')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(_archivedBadgeKey('alert-1')), findsNothing); // gone from Archived
+
+      await tester.tap(find.widgetWithText(Tab, translate(AppLocale.en, 'activeAlertsTab')));
+      await tester.pumpAndSettle();
+      expect(find.text('blocking access'), findsOneWidget); // back in Active, ready for the next cycle
+    }
   });
 
   test('archived state persists after a fresh refetch (simulating reopening the screen / an app restart)', () async {

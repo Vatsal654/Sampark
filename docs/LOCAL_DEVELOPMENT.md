@@ -233,6 +233,26 @@ npm run --workspace apps/admin test:e2e              # Playwright
 cd apps/mobile && flutter test
 ```
 
+### Diagnosing a failed acknowledge/archive/unarchive on the owner app
+
+Each alert card's Acknowledge/Archive/Unarchive buttons never optimistically update — success is
+only ever shown after the real POST resolves and the list is refetched (see
+`AlertsController.acknowledge`/`archive`/`unarchive` in
+`apps/mobile/lib/features/alerts/providers/alerts_controller.dart`). If one of these shows
+"Something went wrong" on a physical device, two things now make the actual cause observable
+without a connected debugger:
+
+1. **The `flutter run`/DevTools console** — every caught error goes through `logApiError`
+   (`core/network/api_error_logger.dart`), which prints the HTTP method/path, Dio failure type,
+   status code, and redacted response body (never a raw phone/token). This used to be silently
+   discarded by a bare `catch (_) { ... }`, the same class of bug already fixed for the OTP screens.
+2. **An on-card dev diagnostics panel** (debug builds only — `kDebugMode`, never in a release
+   build) showing the exact method, URL, whether the request was attempted, response status,
+   exception, and classification (`network_error`, `unauthorized`, `server_error`, `client_error`,
+   `session_expired`, or `unknown`) for the most recent action on that card. This is the same idea
+   as the scanner portal's `DevDiagnostics`/`AlertDevDiagnostics` panels, for the same reason: a
+   physical device often has no accessible devtools console.
+
 ## Notification simulator (and where OTP codes go in development)
 
 `OTP_PROVIDER=mock` (the `.env.example` default) never sends a real SMS —
