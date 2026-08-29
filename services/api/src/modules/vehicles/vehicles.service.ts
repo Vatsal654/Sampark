@@ -33,7 +33,12 @@ export class VehiclesService {
       plateLookupHash: hashForLookup(input.plateNumber, this.config.FIELD_ENCRYPTION_ROOT_KEY),
       make: input.make ?? null,
       model: input.model ?? null,
+      variant: input.variant ?? null,
+      manufacturingYear: input.manufacturingYear ?? null,
+      fuelType: input.fuelType ?? null,
       color: input.color ?? null,
+      vinNumber: input.vinNumber ?? null,
+      engineNumber: input.engineNumber ?? null,
     });
     return this.toView(await this.vehicles.save(vehicle), null);
   }
@@ -41,8 +46,14 @@ export class VehiclesService {
   async list(ownerId: string) {
     const rows = await this.vehicles.find({ where: { ownerId }, order: { createdAt: 'DESC' } });
     const tagRows = rows.length ? await this.tags.find({ where: rows.map((r) => ({ vehicleId: r.id })) }) : [];
-    const tagByVehicle = new Map(tagRows.map((t) => [t.vehicleId, t.id]));
+    const tagByVehicle = new Map(tagRows.map((t) => [t.vehicleId, t]));
     return rows.map((row) => this.toView(row, tagByVehicle.get(row.id) ?? null));
+  }
+
+  async getOne(ownerId: string, vehicleId: string) {
+    const vehicle = await this.getOwned(ownerId, vehicleId);
+    const tag = await this.tags.findOne({ where: { vehicleId: vehicle.id } });
+    return this.toView(vehicle, tag ?? null);
   }
 
   async getOwned(ownerId: string, vehicleId: string): Promise<VehicleEntity> {
@@ -58,13 +69,18 @@ export class VehiclesService {
     if (input.category !== undefined) vehicle.category = input.category;
     if (input.make !== undefined) vehicle.make = input.make ?? null;
     if (input.model !== undefined) vehicle.model = input.model ?? null;
+    if (input.variant !== undefined) vehicle.variant = input.variant ?? null;
+    if (input.manufacturingYear !== undefined) vehicle.manufacturingYear = input.manufacturingYear ?? null;
+    if (input.fuelType !== undefined) vehicle.fuelType = input.fuelType ?? null;
     if (input.color !== undefined) vehicle.color = input.color ?? null;
+    if (input.vinNumber !== undefined) vehicle.vinNumber = input.vinNumber ?? null;
+    if (input.engineNumber !== undefined) vehicle.engineNumber = input.engineNumber ?? null;
     if (input.plateNumber !== undefined) {
       vehicle.plateNumberEncrypted = encryptField(input.plateNumber, this.config.FIELD_ENCRYPTION_ROOT_KEY);
       vehicle.plateLookupHash = hashForLookup(input.plateNumber, this.config.FIELD_ENCRYPTION_ROOT_KEY);
     }
     const tag = await this.tags.findOne({ where: { vehicleId: vehicle.id } });
-    return this.toView(await this.vehicles.save(vehicle), tag?.id ?? null);
+    return this.toView(await this.vehicles.save(vehicle), tag ?? null);
   }
 
   async remove(ownerId: string, vehicleId: string): Promise<void> {
@@ -72,7 +88,7 @@ export class VehiclesService {
     await this.vehicles.remove(vehicle);
   }
 
-  private toView(vehicle: VehicleEntity, tagId: string | null) {
+  private toView(vehicle: VehicleEntity, tag: TagEntity | null) {
     const plate = decryptField(vehicle.plateNumberEncrypted, this.config.FIELD_ENCRYPTION_ROOT_KEY);
     return {
       id: vehicle.id,
@@ -81,8 +97,14 @@ export class VehiclesService {
       plateNumberMasked: plate.length > 4 ? `${plate.slice(0, 2)}•••${plate.slice(-2)}` : '••••',
       make: vehicle.make,
       model: vehicle.model,
+      variant: vehicle.variant,
+      manufacturingYear: vehicle.manufacturingYear,
+      fuelType: vehicle.fuelType,
       color: vehicle.color,
-      tagId,
+      vinNumber: vehicle.vinNumber,
+      engineNumber: vehicle.engineNumber,
+      tagId: tag?.id ?? null,
+      tagStatus: tag?.status ?? null,
       createdAt: vehicle.createdAt.toISOString(),
     };
   }

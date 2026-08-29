@@ -30,6 +30,11 @@ export class VehiclesController {
     return this.vehiclesService.list(ownerId);
   }
 
+  @Get(':id')
+  getOne(@CurrentUserId() ownerId: string, @Param('id') id: string) {
+    return this.vehiclesService.getOne(ownerId, id);
+  }
+
   @Patch(':id')
   update(
     @CurrentUserId() ownerId: string,

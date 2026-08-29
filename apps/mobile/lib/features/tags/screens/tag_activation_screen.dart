@@ -17,6 +17,8 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:nfc_manager/nfc_manager.dart';
 
 import '../../../core/i18n/locale_provider.dart';
+import '../../../core/network/api_error_logger.dart';
+import '../../vehicles/providers/vehicles_controller.dart';
 import '../providers/tags_controller.dart';
 
 /// Maps a MobileScanner failure to a user-facing message. Pulled out as a pure function (no
@@ -60,24 +62,37 @@ class _TagActivationScreenState extends ConsumerState<TagActivationScreen> {
   }
 
   Future<void> _startNfcScan() async {
+    final locale = ref.read(localeProvider);
     final available = await NfcManager.instance.isAvailable();
     if (!available) {
-      setState(() => _error = 'NFC is not available on this device.');
+      if (mounted) setState(() => _error = translate(locale, 'nfcNotAvailable'));
       return;
     }
-    await NfcManager.instance.startSession(
-      onDiscovered: (NfcTag tag) async {
-        final ndef = Ndef.from(tag);
-        final records = ndef?.cachedMessage?.records ?? const [];
-        final record = records.isNotEmpty ? records.first : null;
-        if (record != null) {
-          final text = utf8.decode(record.payload, allowMalformed: true);
-          final opaqueId = extractOpaqueIdFromScan(text);
-          if (opaqueId != null && mounted) setState(() => _opaqueId = opaqueId);
-        }
-        await NfcManager.instance.stopSession();
-      },
-    );
+    try {
+      await NfcManager.instance.startSession(
+        onDiscovered: (NfcTag tag) async {
+          final ndef = Ndef.from(tag);
+          final records = ndef?.cachedMessage?.records ?? const [];
+          final record = records.isNotEmpty ? records.first : null;
+          if (record != null) {
+            final text = utf8.decode(record.payload, allowMalformed: true);
+            final opaqueId = extractOpaqueIdFromScan(text);
+            if (opaqueId != null && mounted) setState(() => _opaqueId = opaqueId);
+          }
+          await NfcManager.instance.stopSession();
+        },
+        // iOS-only (see nfc_manager docs): fires when the system NFC session stops on its own —
+        // a read timeout, the user cancelling the system sheet, or an unreadable tag — none of
+        // which reach onDiscovered at all. Without this, those failures were silent: no error,
+        // no opaqueId, the screen just sits there looking hung.
+        onError: (error) async {
+          if (mounted) setState(() => _error = translate(locale, 'nfcError'));
+        },
+      );
+    } catch (error, stackTrace) {
+      logApiError('startNfcScan', error, stackTrace);
+      if (mounted) setState(() => _error = translate(locale, 'nfcError'));
+    }
   }
 
   Future<void> _submit() async {
@@ -92,8 +107,14 @@ class _TagActivationScreenState extends ConsumerState<TagActivationScreen> {
             activationPin: _pinController.text.trim(),
             vehicleId: widget.vehicleId,
           );
+      // The vehicle list/details screen already holds this vehicle's tagId/tagStatus in
+      // vehiclesControllerProvider's state; invalidating it here is what makes Vehicle Details
+      // reflect the newly-active tag immediately on returning, instead of showing stale
+      // "no tag" state until the next unrelated refresh.
+      ref.invalidate(vehiclesControllerProvider);
       if (mounted) context.pop();
-    } catch (_) {
+    } catch (error, stackTrace) {
+      logApiError('activateTag', error, stackTrace);
       if (mounted) setState(() => _error = translate(ref.read(localeProvider), 'errorGeneric'));
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -143,6 +164,13 @@ class _TagActivationScreenState extends ConsumerState<TagActivationScreen> {
                 icon: const Icon(Icons.nfc),
                 label: Text(translate(locale, 'tapNfcTag')),
               ),
+              // NFC failures (see _startNfcScan's onError) happen while still on this branch —
+              // _opaqueId is only set on a successful read — so the error needs to be visible
+              // here too, not just on the PIN-entry branch below.
+              if (_error != null) ...[
+                const SizedBox(height: 8),
+                Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              ],
             ] else ...[
               Text('Tag ID: $_opaqueId', style: Theme.of(context).textTheme.bodyMedium),
               const SizedBox(height: 16),

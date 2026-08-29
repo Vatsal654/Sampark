@@ -8,6 +8,7 @@ audited), **Critical** (encrypted, break-glass only, never in logs).
 |---|---|---|---|---|---|
 | `display_label` | vehicles | Public | plain | allowed | owner-chosen, no plate/name allowed by validation |
 | `plate_number` | vehicles | Sensitive | envelope-encrypted + keyed hash for lookup | never | never in URLs, analytics, or push payloads |
+| `vin_number` / `engine_number` | vehicles | Internal | plain | never | owner-visible/editable identifiers, not used for lookup and never shown to a scanner (see public.ts's scanner-facing schema, which has no vehicle-identifier fields at all) |
 | `phone_e164` | verified_phone_credentials | Critical | envelope-encrypted + keyed hash for lookup | never | redaction filter strips any E.164-shaped string from logs |
 | `full_name` | users | Sensitive | plain (Internal-visible), redacted in scanner-facing responses | never to scanner | visible to owner + authorized support only |
 | `medical_note` | emergency_profiles | Critical | envelope-encrypted | never | shown to scanner only after emergency confirmation, opt-in per field |

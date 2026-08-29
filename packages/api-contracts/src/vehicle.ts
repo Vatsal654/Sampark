@@ -8,7 +8,9 @@
  * Related: enums.ts, services/api vehicles + tags modules, apps/mobile.
  */
 import { z } from 'zod';
-import { VEHICLE_CATEGORIES } from './enums';
+import { FUEL_TYPES, TAG_STATUSES, VEHICLE_CATEGORIES } from './enums';
+
+const currentYear = new Date().getFullYear();
 
 export const createVehicleSchema = z.object({
   displayLabel: z
@@ -20,7 +22,12 @@ export const createVehicleSchema = z.object({
   plateNumber: z.string().min(4).max(12),
   make: z.string().max(40).optional(),
   model: z.string().max(40).optional(),
+  variant: z.string().max(40).optional(),
+  manufacturingYear: z.number().int().min(1980).max(currentYear + 1).optional(),
+  fuelType: z.enum(FUEL_TYPES).optional(),
   color: z.string().max(30).optional(),
+  vinNumber: z.string().min(4).max(32).optional(),
+  engineNumber: z.string().min(2).max(32).optional(),
 });
 export type CreateVehicle = z.infer<typeof createVehicleSchema>;
 
@@ -34,8 +41,14 @@ export const vehicleViewSchema = z.object({
   plateNumberMasked: z.string(),
   make: z.string().nullable(),
   model: z.string().nullable(),
+  variant: z.string().nullable(),
+  manufacturingYear: z.number().int().nullable(),
+  fuelType: z.enum(FUEL_TYPES).nullable(),
   color: z.string().nullable(),
+  vinNumber: z.string().nullable(),
+  engineNumber: z.string().nullable(),
   tagId: z.string().uuid().nullable(),
+  tagStatus: z.enum(TAG_STATUSES).nullable(),
   createdAt: z.string().datetime(),
 });
 export type VehicleView = z.infer<typeof vehicleViewSchema>;

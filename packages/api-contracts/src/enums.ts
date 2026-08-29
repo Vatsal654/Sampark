@@ -13,6 +13,9 @@
 export const VEHICLE_CATEGORIES = ['car', 'bike', 'scooter', 'taxi', 'commercial', 'other'] as const;
 export type VehicleCategory = (typeof VEHICLE_CATEGORIES)[number];
 
+export const FUEL_TYPES = ['petrol', 'diesel', 'electric', 'hybrid', 'cng', 'other'] as const;
+export type FuelType = (typeof FUEL_TYPES)[number];
+
 export const TAG_STATUSES = [
   'manufactured',
   'issued',

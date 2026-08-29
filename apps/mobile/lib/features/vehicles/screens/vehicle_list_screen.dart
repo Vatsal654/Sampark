@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/i18n/locale_provider.dart';
+import '../../tags/providers/tags_controller.dart';
 import '../providers/vehicles_controller.dart';
 
 class VehicleListScreen extends ConsumerWidget {
@@ -40,16 +41,28 @@ class VehicleListScreen extends ConsumerWidget {
             itemCount: vehicles.length,
             itemBuilder: (context, index) {
               final vehicle = vehicles[index];
+              final makeModel = [vehicle.make, vehicle.model].whereType<String>().join(' ');
+              final subtitleParts = [
+                vehicle.plateNumberMasked,
+                if (makeModel.isNotEmpty) makeModel,
+                tagStatusLabel(locale, vehicle.tagStatus),
+              ];
               return ListTile(
                 leading: const Icon(Icons.directions_car),
                 title: Text(vehicle.displayLabel),
-                subtitle: Text('${vehicle.category} · ${vehicle.plateNumberMasked}'),
-                trailing: vehicle.tagId == null
+                subtitle: Text(subtitleParts.join(' · ')),
+                trailing: canActivateTag(vehicle.tagStatus)
                     ? OutlinedButton(
                         onPressed: () => context.push('/tags/activate', extra: vehicle.id),
                         child: Text(translate(locale, 'activateTag')),
                       )
-                    : const Icon(Icons.verified, color: Colors.green),
+                    // A green check only means "active" — paused/reported-lost/replaced/revoked
+                    // still can't be (re)activated from here, but they are not a good state, so
+                    // they get no icon; the subtitle above already spells out the actual status.
+                    : vehicle.tagStatus == 'active'
+                        ? const Icon(Icons.verified, color: Colors.green)
+                        : null,
+                onTap: () => context.push('/vehicles/details', extra: vehicle.id),
               );
             },
           );

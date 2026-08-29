@@ -42,8 +42,23 @@ export class VehicleEntity {
   @Column({ type: 'varchar', length: 40, nullable: true })
   model!: string | null;
 
+  @Column({ type: 'varchar', length: 40, nullable: true })
+  variant!: string | null;
+
+  @Column({ type: 'smallint', nullable: true })
+  manufacturingYear!: number | null;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  fuelType!: string | null;
+
   @Column({ type: 'varchar', length: 30, nullable: true })
   color!: string | null;
+
+  @Column({ type: 'varchar', length: 32, nullable: true })
+  vinNumber!: string | null;
+
+  @Column({ type: 'varchar', length: 32, nullable: true })
+  engineNumber!: string | null;
 
   @Column({ type: 'varchar', length: 200, nullable: true })
   imageObjectKey!: string | null;

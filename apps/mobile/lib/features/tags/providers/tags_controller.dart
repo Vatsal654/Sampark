@@ -8,6 +8,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/i18n/locale_provider.dart';
 import '../../auth/providers/auth_controller.dart';
 
 class TagsController {
@@ -39,3 +40,27 @@ String? extractOpaqueIdFromScan(String raw) {
   if (dotIndex <= 0 || dotIndex == withoutScheme.length - 1) return null;
   return withoutScheme.substring(0, dotIndex);
 }
+
+/// Maps a Vehicle.tagStatus (packages/api-contracts/src/enums.ts#TAG_STATUSES, or null
+/// when no tag is associated yet) to a localized label for VehicleDetailsScreen. Pure/no
+/// BuildContext so it's unit-testable without pumping a widget.
+String tagStatusLabel(AppLocale locale, String? tagStatus) {
+  if (tagStatus == null) return translate(locale, 'noTagAssociated');
+  const knownStatuses = {
+    'active',
+    'paused',
+    'reported_lost',
+    'replaced',
+    'revoked',
+    'pending_activation',
+    'issued',
+    'manufactured',
+  };
+  if (!knownStatuses.contains(tagStatus)) return tagStatus;
+  return translate(locale, 'tagStatus_$tagStatus');
+}
+
+/// A tag can be activated onto this vehicle only while it has no tag at all, or has one that
+/// was issued but never completed activation — everything else (active/paused/lost/etc.) is a
+/// real, already-bound tag and must go through pause/report-lost/reassign instead.
+bool canActivateTag(String? tagStatus) => tagStatus == null || tagStatus == 'issued' || tagStatus == 'pending_activation';

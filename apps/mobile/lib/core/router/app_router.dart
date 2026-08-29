@@ -17,6 +17,8 @@ import '../../features/documents/screens/document_vault_screen.dart';
 import '../../features/emergency/screens/emergency_profile_screen.dart';
 import '../../features/tags/screens/tag_activation_screen.dart';
 import '../../features/vehicles/screens/add_vehicle_screen.dart';
+import '../../features/vehicles/screens/edit_vehicle_screen.dart';
+import '../../features/vehicles/screens/vehicle_details_screen.dart';
 import '../../shared/widgets/home_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -39,6 +41,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/home', builder: (context, state) => const HomeShell()),
       GoRoute(path: '/vehicles/add', builder: (context, state) => const AddVehicleScreen()),
+      GoRoute(
+        path: '/vehicles/details',
+        builder: (context, state) => VehicleDetailsScreen(vehicleId: state.extra! as String),
+      ),
+      GoRoute(
+        path: '/vehicles/edit',
+        builder: (context, state) => EditVehicleScreen(vehicleId: state.extra! as String),
+      ),
       GoRoute(
         path: '/tags/activate',
         builder: (context, state) => TagActivationScreen(vehicleId: state.extra! as String),
