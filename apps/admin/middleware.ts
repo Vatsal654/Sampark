@@ -10,8 +10,16 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { SESSION_COOKIE } from './lib/session-constants';
 
+// TEMPORARY: ADMIN_AUTH_DISABLED (dev-only, see lib/session.ts) skips this
+// redirect so /dashboard is reachable without logging in first.
+const authDisabled = process.env.ADMIN_AUTH_DISABLED === 'true' && process.env.NODE_ENV !== 'production';
+
 export function middleware(request: NextRequest) {
-  if (request.nextUrl.pathname.startsWith('/dashboard') && !request.cookies.get(SESSION_COOKIE)) {
+  if (
+    !authDisabled &&
+    request.nextUrl.pathname.startsWith('/dashboard') &&
+    !request.cookies.get(SESSION_COOKIE)
+  ) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
   return NextResponse.next();

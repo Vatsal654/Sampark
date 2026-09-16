@@ -14,15 +14,16 @@
  */
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { CSRF_COOKIE, CSRF_HEADER, SESSION_COOKIE, apiBaseUrl } from '../../../../lib/session';
+import { CSRF_COOKIE, CSRF_HEADER, SESSION_COOKIE, adminAuthDisabled, apiBaseUrl } from '../../../../lib/session';
 
 async function proxy(request: Request, path: string[]): Promise<NextResponse> {
+  const bypassAuth = adminAuthDisabled();
   const sessionToken = cookies().get(SESSION_COOKIE)?.value;
-  if (!sessionToken) {
+  if (!bypassAuth && !sessionToken) {
     return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
   }
 
-  if (request.method !== 'GET') {
+  if (!bypassAuth && request.method !== 'GET') {
     const csrfCookie = cookies().get(CSRF_COOKIE)?.value;
     const csrfHeader = request.headers.get(CSRF_HEADER);
     if (!csrfCookie || !csrfHeader || csrfCookie !== csrfHeader) {
@@ -34,7 +35,7 @@ async function proxy(request: Request, path: string[]): Promise<NextResponse> {
   const upstream = await fetch(upstreamUrl, {
     method: request.method,
     headers: {
-      authorization: `Bearer ${sessionToken}`,
+      ...(sessionToken ? { authorization: `Bearer ${sessionToken}` } : {}),
       'content-type': 'application/json',
     },
     body: request.method === 'GET' ? undefined : await request.text(),

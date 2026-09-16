@@ -12,6 +12,18 @@ export function cookieSecure(): boolean {
   return process.env.COOKIE_SECURE === 'true';
 }
 
+/**
+ * TEMPORARY: mirrors ADMIN_AUTH_DISABLED on services/api. When set, the
+ * proxy route and middleware skip the session/CSRF checks entirely so the
+ * admin console can be used without logging in first. Refuses to honor the
+ * flag outside development, so a stray setting can never weaken a real
+ * deployment. Remove alongside the backend's AdminAuthGuard bypass once the
+ * login flow is being exercised again.
+ */
+export function adminAuthDisabled(): boolean {
+  return process.env.ADMIN_AUTH_DISABLED === 'true' && process.env.NODE_ENV !== 'production';
+}
+
 export function generateCsrfToken(): string {
   return randomBytes(24).toString('base64url');
 }

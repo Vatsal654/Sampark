@@ -63,6 +63,12 @@ export const baseEnvSchema = z.object({
 
   SWAGGER_ENABLED: boolFromEnv,
   ADMIN_MOCK_SSO_ENABLED: boolFromEnv,
+  // TEMPORARY, explicit, opt-in dev bypass for AdminAuthGuard — lets the admin console be used
+  // without logging in first, for early local testing. Defaults OFF; AdminAuthGuard also refuses
+  // to honor this at all when NODE_ENV==='production', so it can never disable real admin auth in
+  // a real deployment even if accidentally left set. Remove this flag (and its one call site in
+  // admin-auth.guard.ts) once the admin console's login flow is actually being exercised again.
+  ADMIN_AUTH_DISABLED: boolFromEnv,
 
   CORS_ALLOWED_ORIGINS: z
     .string()

@@ -7,7 +7,18 @@
  * Security: Admin and owner tokens are signed with the same secret but
  * carry a distinct `type` claim specifically so an owner token can never
  * be replayed against an admin route or vice versa.
- * Related: common/guards/permissions.guard.ts, modules/admin/auth.
+ * TEMPORARY: when `ADMIN_AUTH_DISABLED=true`, this guard skips the token
+ * check entirely and attaches a synthetic super_admin identity instead —
+ * an explicit, opt-in bypass for early local testing of the admin console
+ * without wiring up login first (apps/admin's middleware/proxy route have
+ * a matching bypass, gated by the same env var, that must also be set for
+ * this to work end-to-end). Refuses to honor the flag at all when
+ * NODE_ENV==='production', so a stray/accidental setting can never
+ * disable real admin auth in a real deployment. Revert by unsetting
+ * ADMIN_AUTH_DISABLED (or removing this block) once real admin login is
+ * being exercised again.
+ * Related: common/guards/permissions.guard.ts, modules/admin/auth,
+ * apps/admin/middleware.ts, apps/admin/app/api/admin/[...path]/route.ts.
  */
 import { CanActivate, ExecutionContext, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -28,6 +39,12 @@ export class AdminAuthGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<AdminAuthenticatedRequest>();
+
+    if (this.config.ADMIN_AUTH_DISABLED && this.config.NODE_ENV !== 'production') {
+      request.admin = { id: 'dev-bypass-admin', role: 'super_admin' };
+      return true;
+    }
+
     const header = request.headers.authorization;
     if (!header?.startsWith('Bearer ')) {
       throw new UnauthorizedException('Missing bearer token');
